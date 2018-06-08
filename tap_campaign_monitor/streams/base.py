@@ -92,7 +92,9 @@ class BaseStream:
         data = self.get_stream_data(result)
 
         with singer.metrics.record_counter(endpoint=table) as counter:
-            for obj in data:
+            for index, obj in enumerate(data):
+                LOGGER.info("On {} of {}".format(index, len(data)))
+
                 singer.write_records(
                     table,
                     [self.filter_keys(obj)])
@@ -149,8 +151,6 @@ class PaginatedChildStream(ChildStream):
         total_pages = -1
 
         while has_data:
-            LOGGER.info(has_data)
-
             url = (
                 'https://api.createsend.com/api/v3.2{api_path}'.format(
                     api_path=self.get_api_path_for_child(parent)))

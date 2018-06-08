@@ -2,7 +2,7 @@ from tap_campaign_monitor.streams.base import ChildStream
 
 
 class CampaignEmailClientUsageStream(ChildStream):
-    KEY_PROPERTIES = ['CampaignID', 'EmailAddress']
+    KEY_PROPERTIES = ['CampaignID', 'Client', 'Version']
     TABLE = 'campaign_email_client_usage'
     REQUIRES = ['campaigns']
 
