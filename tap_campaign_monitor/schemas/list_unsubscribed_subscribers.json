@@ -1,0 +1,66 @@
+{
+  "type": "object",
+  "inclusion": "available",
+  "selected-by-default": false,
+  "properties": {
+    "ListID": {
+      "type": "string"
+    },
+    "EmailAddress": {
+      "type": "string"
+    },
+    "Date": {
+      "type": "string"
+    },
+    "Name": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "State": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "CustomFields": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "object"
+        ],
+        "properties": {
+          "Key": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "Value": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      }
+    },
+    "ReadsEmailWith": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "ConsentToTrack": {
+      "type": [
+        "null",
+        "string"
+      ]
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "type": "object",
+  "inclusion": "available",
+  "selected-by-default": false,
+  "properties": {
+    "CampaignID": {
+      "type": "string"
+    },
+    "Client": {
+      "type": "string"
+    },
+    "Version": {
+      "type": "string"
+    },
+    "Percentage": {
+      "type": [
+        "null",
+        "number"
+      ]
+    },
+    "Subscribers": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    }
+  }
+}

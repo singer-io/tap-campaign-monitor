@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "inclusion": "available",
+  "selected-by-default": false,
+  "properties": {
+    "CampaignID": {
+      "type": "string"
+    },
+    "EmailAddress": {
+      "type": "string"
+    },
+    "ListID": {
+      "type": "string"
+    }
+  }
+}

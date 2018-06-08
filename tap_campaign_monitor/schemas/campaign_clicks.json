@@ -1,0 +1,67 @@
+{
+  "type": "object",
+  "inclusion": "available",
+  "selected-by-default": false,
+  "properties": {
+    "CampaignID": {
+      "type": "string"
+    },
+    "EmailAddress": {
+      "type": "string"
+    },
+    "ListID": {
+      "type": "string"
+    },
+    "Date": {
+      "type": "string"
+    },
+    "URL": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "IPAddress": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "Latitude": {
+      "type": [
+        "null",
+        "number"
+      ]
+    },
+    "Longitude": {
+      "type": [
+        "null",
+        "number"
+      ]
+    },
+    "City": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "Region": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "CountryCode": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "CountryName": {
+      "type": [
+        "null",
+        "string"
+      ]
+    }
+  }
+}
