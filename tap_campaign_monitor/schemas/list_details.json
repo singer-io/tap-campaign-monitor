@@ -1,0 +1,40 @@
+{
+  "type": "object",
+  "inclusion": "available",
+  "selected-by-default": false,
+  "properties": {
+    "ListID": {
+      "type": "string"
+    },
+    "ConfirmedOptIn": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "Title": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "UnsubscribePage": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "UnsubscribeSetting": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "ConfirmationSuccessPage": {
+      "type": [
+        "null",
+        "string"
+      ]
+    }
+  }
+}

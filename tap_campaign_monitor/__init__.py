@@ -109,19 +109,15 @@ def do_sync(args):
     save_state(state)
 
 
+@singer.utils.handle_top_exception(LOGGER)
 def main():
-    try:
-        args = singer.utils.parse_args(
-            required_config_keys=['api_key', 'client_id'])
+    args = singer.utils.parse_args(
+        required_config_keys=['api_key', 'client_id'])
 
-        if args.discover:
-            do_discover(args)
-        else:
-            do_sync(args)
-    except:
-        LOGGER.info('abc')
-        import traceback
-        traceback.print_exc()
+    if args.discover:
+        do_discover(args)
+    else:
+        do_sync(args)
 
 
 if __name__ == '__main__':

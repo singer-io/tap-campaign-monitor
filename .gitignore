@@ -1,5 +1,5 @@
 *.json
-!tap_campaign_monitor/schemas/*.json
+!*/schemas/*.json
 *.sublime-*
 .python-version
 singer-check-tap-data

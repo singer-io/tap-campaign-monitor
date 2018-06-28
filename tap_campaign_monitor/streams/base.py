@@ -199,8 +199,6 @@ class DatePaginatedChildStream(ChildStream):
         total_pages = -1
 
         while has_data:
-            LOGGER.info(has_data)
-
             url = (
                 'https://api.createsend.com/api/v3.2{api_path}'.format(
                     api_path=self.get_api_path_for_child(parent)))
