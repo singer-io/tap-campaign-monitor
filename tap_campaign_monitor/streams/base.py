@@ -1,12 +1,8 @@
-import math
-import pytz
 import singer
 import singer.utils
 import singer.metrics
 
-from datetime import timedelta, datetime
 from funcy import project
-from tap_campaign_monitor.config import get_config_start_date
 from tap_campaign_monitor.schemas import load_schema_by_name
 from tap_campaign_monitor.state import incorporate, save_state, \
     get_last_record_value_for_table
@@ -198,6 +194,8 @@ class DatePaginatedChildStream(ChildStream):
         page_size = 1000
         total_pages = -1
 
+        start_date = get_last_record_value_for_table(self.state, table)
+
         while has_data:
             url = (
                 'https://api.createsend.com/api/v3.2{api_path}'.format(
@@ -210,6 +208,9 @@ class DatePaginatedChildStream(ChildStream):
                 'orderdirection': 'asc',
             }
 
+            if start_date is not None:
+                params['date'] = start_date
+
             result = self.client.make_request(
                 url, self.API_METHOD, params=params)
 
@@ -221,22 +222,24 @@ class DatePaginatedChildStream(ChildStream):
 
             with singer.metrics.record_counter(endpoint=table) as counter:
                 for obj in data:
+                    to_write = self.filter_keys(
+                        self.incorporate_parent_id(obj, parent))
+
                     singer.write_records(
                         table,
-                        [self.filter_keys(
-                            self.incorporate_parent_id(obj, parent))])
+                        [to_write])
+
+                    self.state = incorporate(self.state,
+                                             table,
+                                             'Date',
+                                             to_write.get('Date'))
 
                     counter.increment()
+
+            save_state(self.state)
 
             if page >= total_pages:
                 has_data = False
 
             else:
                 page = page + 1
-
-            # self.state = incorporate(self.state,
-            #                          table,
-            #                          'updated_at',
-            #                          date.isoformat())
-
-            # save_state(self.state)
