@@ -2,7 +2,7 @@ from tap_campaign_monitor.streams.base import PaginatedChildStream
 
 
 class CampaignRecipientsStream(PaginatedChildStream):
-    KEY_PROPERTIES = ['CampaignID', 'EmailAddress']
+    KEY_PROPERTIES = ['CampaignID', 'ListID', 'EmailAddress']
     TABLE = 'campaign_recipients'
     REQUIRES = ['campaigns']
 
