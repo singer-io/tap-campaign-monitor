@@ -1,4 +1,4 @@
-from tap_List_monitor.streams.base import ChildStream
+from tap_campaign_monitor.streams.base import ChildStream
 
 
 class ListDetailsStream(ChildStream):
