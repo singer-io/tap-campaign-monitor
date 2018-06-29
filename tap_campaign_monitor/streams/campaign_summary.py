@@ -1,5 +1,7 @@
 from tap_campaign_monitor.streams.base import ChildStream
 
+import singer
+
 
 class CampaignSummaryStream(ChildStream):
     KEY_PROPERTIES = ['CampaignID']
