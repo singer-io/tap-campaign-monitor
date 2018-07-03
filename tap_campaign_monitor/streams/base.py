@@ -194,7 +194,9 @@ class DatePaginatedChildStream(ChildStream):
         page_size = 1000
         total_pages = -1
 
-        start_date = get_last_record_value_for_table(self.state, table)
+        state_key = "{}.{}".format(self.get_parent_id(parent), table)
+
+        start_date = get_last_record_value_for_table(self.state, state_key)
 
         while has_data:
             url = (
@@ -230,7 +232,7 @@ class DatePaginatedChildStream(ChildStream):
                         [to_write])
 
                     self.state = incorporate(self.state,
-                                             table,
+                                             state_key,
                                              'Date',
                                              to_write.get('Date'))
 
