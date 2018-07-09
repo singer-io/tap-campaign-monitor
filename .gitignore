@@ -1,5 +1,6 @@
 *.json
 !*/schemas/*.json
+!*example.json
 *.sublime-*
 .python-version
 singer-check-tap-data
