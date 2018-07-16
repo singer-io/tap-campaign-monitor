@@ -13,8 +13,7 @@
       "type": "string"
     },
     "Date": {
-      "type": "string",
-      "format": "date-time"
+      "type": "string"
     }
   }
 }
