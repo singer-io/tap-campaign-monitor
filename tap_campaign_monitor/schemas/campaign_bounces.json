@@ -13,7 +13,8 @@
       "type": "string"
     },
     "Date": {
-      "type": "string"
+      "type": "string",
+      "format": "date-time"
     },
     "BounceType": {
       "type": [

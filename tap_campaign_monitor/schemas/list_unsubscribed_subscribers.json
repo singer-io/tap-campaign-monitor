@@ -10,7 +10,8 @@
       "type": "string"
     },
     "Date": {
-      "type": "string"
+      "type": "string",
+      "format": "date-time"
     },
     "Name": {
       "type": [
