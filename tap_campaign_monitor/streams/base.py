@@ -46,11 +46,35 @@ class BaseStream:
         return stream_catalog.stream == cls.TABLE
 
     def generate_catalog(self):
+        schema = self.get_schema()
+        mdata = singer.metadata.new()
+
+        mdata = singer.metadata.write(
+            mdata,
+            (),
+            'inclusion',
+            'available'
+        )
+
+        for field_name, field_schema in schema.get('properties').items():
+            inclusion = 'available'
+
+            if field_name in self.KEY_PROPERTIES:
+                inclusion = 'automatic'
+
+            mdata = singer.metadata.write(
+                mdata,
+                ('properties', field_name),
+                'inclusion',
+                inclusion
+            )
+
         return [{
             'tap_stream_id': self.TABLE,
             'stream': self.TABLE,
             'key_properties': self.KEY_PROPERTIES,
-            'schema': self.get_schema()
+            'schema': self.get_schema(),
+            'metadata': singer.metadata.to_list(mdata)
         }]
 
     def get_catalog_keys(self):
@@ -91,9 +115,17 @@ class BaseStream:
             for index, obj in enumerate(data):
                 LOGGER.info("On {} of {}".format(index, len(data)))
 
-                singer.write_records(
-                    table,
-                    [self.filter_keys(obj)])
+                with singer.Transformer() as tx:
+                    singer.write_records(
+                        table,
+                        [tx.transform(
+                            obj,
+                            self.catalog.schema.to_dict(),
+                            singer.metadata.to_map(self.catalog.metadata))])
+
+                    singer.write_records(
+                        table,
+                        [self.filter_keys(obj)])
 
                 counter.increment()
 

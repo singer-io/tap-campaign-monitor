@@ -27,13 +27,19 @@ def do_discover(args):
 
 
 def is_selected(stream_catalog):
-    if stream_catalog.schema.inclusion == 'unsupported':
+    metadata = singer.metadata.to_map(stream_catalog.metadata)
+    stream_metadata = metadata.get((), {})
+
+    inclusion = stream_metadata.get('inclusion')
+    selected = stream_metadata.get('selected')
+
+    if inclusion == 'unsupported':
         return False
 
-    elif stream_catalog.schema.selected is not None:
-        return stream_catalog.schema.selected
+    elif selected is not None:
+        return selected
 
-    return stream_catalog.schema.inclusion == 'automatic'
+    return inclusion == 'automatic'
 
 
 def get_streams_to_replicate(config, state, catalog, client):
@@ -42,7 +48,7 @@ def get_streams_to_replicate(config, state, catalog, client):
     list_substreams = []
 
     for stream_catalog in catalog.streams:
-        if not stream_catalog.schema.selected:
+        if not is_selected(stream_catalog):
             LOGGER.info("'{}' is not marked selected, skipping."
                         .format(stream_catalog.stream))
             continue
