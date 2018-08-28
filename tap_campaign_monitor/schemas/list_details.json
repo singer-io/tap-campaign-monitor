@@ -1,7 +1,5 @@
 {
   "type": "object",
-  "inclusion": "available",
-  "selected-by-default": false,
   "properties": {
     "ListID": {
       "type": "string"
