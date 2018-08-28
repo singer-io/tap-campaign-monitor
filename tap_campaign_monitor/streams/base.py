@@ -123,10 +123,6 @@ class BaseStream:
                             self.catalog.schema.to_dict(),
                             singer.metadata.to_map(self.catalog.metadata))])
 
-                    singer.write_records(
-                        table,
-                        [self.filter_keys(obj)])
-
                 counter.increment()
 
                 for substream in substreams:
