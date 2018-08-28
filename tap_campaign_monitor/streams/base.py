@@ -2,92 +2,16 @@ import singer
 import singer.utils
 import singer.metrics
 
-from funcy import project
-from tap_campaign_monitor.schemas import load_schema_by_name
+from tap_framework.streams import BaseStream as base
 from tap_campaign_monitor.state import incorporate, save_state, \
     get_last_record_value_for_table
 
 LOGGER = singer.get_logger()
 
 
-class BaseStream:
-    # GLOBAL PROPERTIES
-    TABLE = None
+class BaseStream(base):
     KEY_PROPERTIES = ['id']
     API_METHOD = 'GET'
-    REQUIRES = []
-
-    def __init__(self, config, state, catalog, client):
-        self.config = config
-        self.state = state
-        self.catalog = catalog
-        self.client = client
-
-    def get_schema(self):
-        return load_schema_by_name(self.TABLE)
-
-    def get_stream_data(self, result):
-        """
-        Given a result set from Campaign Monitor, return the data
-        to be persisted for this stream.
-        """
-        raise RuntimeError("get_stream_data not implemented!")
-
-    @classmethod
-    def requirements_met(cls, catalog):
-        selected_streams = [
-            s.stream for s in catalog.streams if s.schema.selected
-        ]
-
-        return set(cls.REQUIRES).issubset(selected_streams)
-
-    @classmethod
-    def matches_catalog(cls, stream_catalog):
-        return stream_catalog.stream == cls.TABLE
-
-    def generate_catalog(self):
-        schema = self.get_schema()
-        mdata = singer.metadata.new()
-
-        mdata = singer.metadata.write(
-            mdata,
-            (),
-            'inclusion',
-            'available'
-        )
-
-        for field_name, field_schema in schema.get('properties').items():
-            inclusion = 'available'
-
-            if field_name in self.KEY_PROPERTIES:
-                inclusion = 'automatic'
-
-            mdata = singer.metadata.write(
-                mdata,
-                ('properties', field_name),
-                'inclusion',
-                inclusion
-            )
-
-        return [{
-            'tap_stream_id': self.TABLE,
-            'stream': self.TABLE,
-            'key_properties': self.KEY_PROPERTIES,
-            'schema': self.get_schema(),
-            'metadata': singer.metadata.to_list(mdata)
-        }]
-
-    def get_catalog_keys(self):
-        return list(self.catalog.schema.properties.keys())
-
-    def filter_keys(self, obj):
-        return project(obj, self.get_catalog_keys())
-
-    def write_schema(self):
-        singer.write_schema(
-            self.catalog.stream,
-            self.catalog.schema.to_dict(),
-            key_properties=self.catalog.key_properties)
 
     def sync(self, substreams=None):
         LOGGER.info('Syncing stream {} with {}'
@@ -115,13 +39,9 @@ class BaseStream:
             for index, obj in enumerate(data):
                 LOGGER.info("On {} of {}".format(index, len(data)))
 
-                with singer.Transformer() as tx:
-                    singer.write_records(
-                        table,
-                        [tx.transform(
-                            obj,
-                            self.catalog.schema.to_dict(),
-                            singer.metadata.to_map(self.catalog.metadata))])
+                singer.write_records(
+                    table,
+                    [self.transform_record(obj)])
 
                 counter.increment()
 
@@ -155,8 +75,7 @@ class ChildStream(BaseStream):
             for obj in data:
                 singer.write_records(
                     table,
-                    [self.filter_keys(
-                        self.incorporate_parent_id(obj, parent))])
+                    [self.incorporate_parent_id(obj, parent)])
 
                 counter.increment()
 
@@ -197,8 +116,7 @@ class PaginatedChildStream(ChildStream):
                 for obj in data:
                     singer.write_records(
                         table,
-                        [self.filter_keys(
-                            self.incorporate_parent_id(obj, parent))])
+                        [self.incorporate_parent_id(obj, parent)])
 
                     counter.increment()
 
@@ -252,8 +170,7 @@ class DatePaginatedChildStream(ChildStream):
 
             with singer.metrics.record_counter(endpoint=table) as counter:
                 for obj in data:
-                    to_write = self.filter_keys(
-                        self.incorporate_parent_id(obj, parent))
+                    to_write = self.incorporate_parent_id(obj, parent)
 
                     singer.write_records(
                         table,

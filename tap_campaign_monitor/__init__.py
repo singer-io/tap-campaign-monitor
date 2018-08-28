@@ -6,6 +6,8 @@ import sys
 
 import singer
 
+from tap_framework.streams import is_selected
+
 from tap_campaign_monitor.client import CampaignMonitorClient
 from tap_campaign_monitor.state import save_state
 from tap_campaign_monitor.streams import AVAILABLE_STREAMS
@@ -24,22 +26,6 @@ def do_discover(args):
         catalog += stream.generate_catalog()
 
     json.dump({'streams': catalog}, sys.stdout, indent=4)
-
-
-def is_selected(stream_catalog):
-    metadata = singer.metadata.to_map(stream_catalog.metadata)
-    stream_metadata = metadata.get((), {})
-
-    inclusion = stream_metadata.get('inclusion')
-    selected = stream_metadata.get('selected')
-
-    if inclusion == 'unsupported':
-        return False
-
-    elif selected is not None:
-        return selected
-
-    return inclusion == 'automatic'
 
 
 def get_streams_to_replicate(config, state, catalog, client):
