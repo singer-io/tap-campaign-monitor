@@ -12,4 +12,5 @@ class ListsStream(BaseStream):
             .format(self.config.get('client_id')))
 
     def get_stream_data(self, result):
-        return result
+        return [self.transform_record(item)
+                for item in result]

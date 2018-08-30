@@ -1,3 +1,8 @@
+## 0.1.2
+
+- Update date-time schema entries
+- Fix transform_record calls
+
 ## 0.1.1
 
 - Fix setup.py to include all the relevant files

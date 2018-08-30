@@ -19,4 +19,5 @@ class CampaignRecipientsStream(PaginatedChildStream):
             .format(self.get_parent_id(parent)))
 
     def get_stream_data(self, result):
-        return result.get('Results')
+        return [self.transform_record(item)
+                for item in result.get('Results')]

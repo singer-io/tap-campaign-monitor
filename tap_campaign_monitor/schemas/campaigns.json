@@ -26,7 +26,8 @@
       "type": ["string", "null"]
     },
     "SentDate": {
-      "type": ["string", "null"]
+      "type": ["string", "null"],
+      "format": "date-time"
     },
     "TotalRecipients": {
       "type": ["number", "null"]

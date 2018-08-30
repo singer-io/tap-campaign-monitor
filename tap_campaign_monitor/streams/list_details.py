@@ -21,7 +21,7 @@ class ListDetailsStream(ChildStream):
             .format(self.get_parent_id(parent)))
 
     def get_stream_data(self, result):
-        return result
+        return self.transform_record(result)
 
     def sync_data(self, parent=None):
         if parent is None:
@@ -39,7 +39,6 @@ class ListDetailsStream(ChildStream):
         with singer.metrics.record_counter(endpoint=table) as counter:
             singer.write_records(
                 table,
-                [self.filter_keys(
-                    self.incorporate_parent_id(data, parent))])
+                [self.incorporate_parent_id(data, parent)])
 
             counter.increment()
