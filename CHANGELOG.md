@@ -1,3 +1,7 @@
+## 0.1.3
+
+- Use timezone from campaign monitor when transforming dates
+
 ## 0.1.2
 
 - Update date-time schema entries

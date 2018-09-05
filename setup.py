@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='tap-campaign-monitor',
-    version='0.1.2',
+    version='0.1.3',
     description=(
         'Singer.io tap for extracting data from the '
         'Campaign Monitor API'

@@ -3,6 +3,9 @@ import requests.auth
 import singer
 import singer.metrics
 import time
+import pytz
+
+import tap_campaign_monitor.timezones
 
 LOGGER = singer.get_logger()  # noqa
 
@@ -11,11 +14,25 @@ class CampaignMonitorClient:
 
     def __init__(self, config):
         self.config = config
+        self.timezone = self.get_timezone()
+        LOGGER.info("Client timezone is {}".format(self.timezone))
 
     def get_authorization(self):
         return requests.auth.HTTPBasicAuth(
             self.config.get('api_key'),
             'x')
+
+    def get_timezone(self):
+        url = (
+            'https://api.createsend.com/api/v3.2/clients/{}.json'
+            .format(self.config.get('client_id'))
+        )
+
+        result = self.make_request(url, 'GET')
+
+        timezone = result.get('BasicDetails', {}).get('TimeZone')
+
+        return tap_campaign_monitor.timezones.from_string(timezone)
 
     def make_request(self, url, method, base_backoff=30,
                      params=None, body=None):

@@ -1,6 +1,13 @@
 import singer
 import singer.utils
 import singer.metrics
+import dateutil.parser
+import pytz
+
+from singer.transform import Transformer, VALID_DATETIME_FORMATS, \
+    NO_INTEGER_DATETIME_PARSING, UNIX_SECONDS_INTEGER_DATETIME_PARSING, \
+    unix_seconds_to_datetime, unix_milliseconds_to_datetime
+from singer.utils import strftime
 
 from tap_framework.streams import BaseStream as base
 from tap_campaign_monitor.state import incorporate, save_state, \
@@ -9,9 +16,64 @@ from tap_campaign_monitor.state import incorporate, save_state, \
 LOGGER = singer.get_logger()
 
 
+def strptime_with_timezone(dtimestr, timezone):
+    d_object = dateutil.parser.parse(dtimestr)
+
+    d_object = d_object.astimezone(timezone)
+    d_object = d_object.astimezone(pytz.UTC)
+
+    return d_object
+
+
+def string_to_datetime(value, timezone):
+    try:
+        return strftime(strptime_with_timezone(value, timezone))
+    except Exception as ex:
+        LOGGER.exception(ex)
+        LOGGER.warning("%s, (%s)", ex, value)
+        return None
+
+
+class CampaignMonitorTransformer(Transformer):
+    def __init__(self, timezone, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.timezone = timezone
+
+    def _transform_datetime(self, value):
+        if value is None or value == "":
+            return None  # Short circuit in the case of null or empty string
+
+        if self.integer_datetime_fmt not in VALID_DATETIME_FORMATS:
+            raise Exception("Invalid integer datetime parsing option")
+
+        if self.integer_datetime_fmt == NO_INTEGER_DATETIME_PARSING:
+            return string_to_datetime(value, self.timezone)
+        else:
+            try:
+                if self.integer_datetime_fmt == UNIX_SECONDS_INTEGER_DATETIME_PARSING:  # noqa
+                    return unix_seconds_to_datetime(value)
+                else:
+                    return unix_milliseconds_to_datetime(value)
+            except:
+                return string_to_datetime(value, self.timezone)
+
+
 class BaseStream(base):
     KEY_PROPERTIES = ['id']
     API_METHOD = 'GET'
+
+    def transform_record(self, record):
+        with CampaignMonitorTransformer(self.client.timezone) as tx:
+            metadata = {}
+
+            if self.catalog.metadata is not None:
+                metadata = singer.metadata.to_map(self.catalog.metadata)
+
+            return tx.transform(
+                record,
+                self.catalog.schema.to_dict(),
+                metadata)
 
     def sync(self, substreams=None):
         LOGGER.info('Syncing stream {} with {}'
@@ -41,7 +103,7 @@ class BaseStream(base):
 
                 singer.write_records(
                     table,
-                    [self.transform_record(obj)])
+                    [obj])
 
                 counter.increment()
 
