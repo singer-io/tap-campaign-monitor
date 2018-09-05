@@ -1,3 +1,7 @@
+## 0.1.4
+
+- Fix timezone transform for python 3.5
+
 ## 0.1.3
 
 - Use timezone from campaign monitor when transforming dates

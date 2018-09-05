@@ -19,7 +19,9 @@ LOGGER = singer.get_logger()
 def strptime_with_timezone(dtimestr, timezone):
     d_object = dateutil.parser.parse(dtimestr)
 
-    d_object = d_object.astimezone(timezone)
+    if d_object.tzinfo is None:
+        d_object = timezone.localize(d_object)
+
     d_object = d_object.astimezone(pytz.UTC)
 
     return d_object
