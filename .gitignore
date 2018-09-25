@@ -6,3 +6,4 @@
 singer-check-tap-data
 *.pyc
 *.egg-info
+dist/
