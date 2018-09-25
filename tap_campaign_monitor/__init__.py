@@ -33,6 +33,9 @@ def get_streams_to_replicate(config, state, catalog, client):
     campaign_substreams = []
     list_substreams = []
 
+    if not catalog:
+        return streams, campaign_substreams, list_substreams
+
     for stream_catalog in catalog.streams:
         if not is_selected(stream_catalog):
             LOGGER.info("'{}' is not marked selected, skipping."
@@ -104,7 +107,7 @@ def do_sync(args):
 @singer.utils.handle_top_exception(LOGGER)
 def main():
     args = singer.utils.parse_args(
-        required_config_keys=['api_key', 'client_id'])
+        required_config_keys=['client_id', 'refresh_token'])
 
     if args.discover:
         do_discover(args)
