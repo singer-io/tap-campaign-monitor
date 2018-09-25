@@ -10,7 +10,7 @@ setup(
         'Campaign Monitor API'
     ),
     author='Stitch Data, Fishtown Analytics',
-    url='https://www.stitchdata.com, http://fishtownanalytics.com',
+    url='https://www.stitchdata.com',
     classifiers=['Programming Language :: Python :: 3 :: Only'],
     install_requires=[
         'tap-framework==0.0.5'
