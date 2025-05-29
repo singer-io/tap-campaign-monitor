@@ -6,11 +6,11 @@ import sys
 
 import singer
 
-from tap_framework.streams import is_selected
 
 from tap_campaign_monitor.client import CampaignMonitorClient
 from tap_campaign_monitor.state import save_state
 from tap_campaign_monitor.streams import AVAILABLE_STREAMS
+from tap_campaign_monitor.streams.base import is_selected   
 
 LOGGER = singer.get_logger()  # noqa
 
