@@ -165,18 +165,6 @@ class BaseStream:
             'metadata': singer.metadata.to_list(mdata)
         }]
 
-    def transform_record(self, record):
-        with singer.Transformer() as tx:
-            metadata = {}
-
-            if self.catalog.metadata is not None:
-                metadata = singer.metadata.to_map(self.catalog.metadata)
-
-            return tx.transform(
-                record,
-                self.catalog.schema.to_dict(),
-                metadata)
-
     def get_catalog_keys(self):
         return list(self.catalog.schema.properties.keys())
 
@@ -185,40 +173,6 @@ class BaseStream:
             self.catalog.stream,
             self.catalog.schema.to_dict(),
             key_properties=self.catalog.key_properties)
-
-    def sync(self):
-        LOGGER.info('Syncing stream {} with {}'
-                    .format(self.catalog.tap_stream_id,
-                            self.__class__.__name__))
-
-        self.write_schema()
-
-        return self.sync_data()
-
-    def sync_data(self, substreams=None):
-        if substreams is None:
-            substreams = []
-
-        table = self.TABLE
-
-        url = self.get_url()
-
-        result = self.client.make_request(url, self.API_METHOD)
-
-        data = self.get_stream_data(result)
-
-        with singer.metrics.record_counter(endpoint=table) as counter:
-            for index, obj in enumerate(data):
-                LOGGER.debug("On {} of {}".format(index, len(data)))
-
-                singer.write_records(
-                    table,
-                    [self.transform_record(obj)])
-
-                counter.increment()
-
-                for substream in substreams:
-                    substream.sync_data(parent=obj)
 
     def transform_record(self, record):
         with CampaignMonitorTransformer(self.client.timezone) as tx:
