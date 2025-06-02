@@ -115,12 +115,6 @@ class BaseStream:
         """
         raise RuntimeError("get_stream_data not implemented!")
 
-    def get_url(self):
-        """
-        Return the URL to hit for data from this stream.
-        """
-        raise RuntimeError("get_url not implemented!")
-
     @classmethod
     def requirements_met(cls, catalog):
         selected_streams = [
@@ -164,9 +158,6 @@ class BaseStream:
             'schema': self.get_schema(),
             'metadata': singer.metadata.to_list(mdata)
         }]
-
-    def get_catalog_keys(self):
-        return list(self.catalog.schema.properties.keys())
 
     def write_schema(self):
         singer.write_schema(
