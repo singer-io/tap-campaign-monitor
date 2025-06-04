@@ -58,7 +58,7 @@ tap-campaign-monitor -c config.json --properties catalog.json
 
 ### Gotchas
 
-- If you do select any of the `campaign_*` streams, you MUST select `campaigns` as well. Likewise for `list_*` and `lists`.
+- If you select any of the `campaign_*` streams, you MUST select `campaigns` as well. Likewise for `list_*` and `lists`.
 
 ---
 
