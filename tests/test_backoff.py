@@ -171,7 +171,7 @@ class TestCampaignMonitorClient(unittest.TestCase):
     @patch('tap_campaign_monitor.client.CampaignMonitorClient.get_timezone')
     def test_make_request_max_retries_reached_for_Server429Error(self, mock_get_timezone, mock_refresh_token):
         """
-        Test that make_request raises ServerError after exceeding maximum retry attempts.
+        Test that make_request raises Server429Error after exceeding maximum retry attempts.
         """
         mock_get_timezone.return_value = 'UTC'
         mock_refresh_token.return_value = 'dummy_refresh_token'
@@ -198,7 +198,7 @@ class TestCampaignMonitorClient(unittest.TestCase):
     @patch('tap_campaign_monitor.client.CampaignMonitorClient.get_timezone')
     def test_make_request_max_retries_reached_for_Server5xxError(self, mock_get_timezone, mock_refresh_token):
         """
-        Test that make_request raises ServerError after exceeding maximum retry attempts.
+        Test that make_request raises Server5xxError after exceeding maximum retry attempts.
         """
         mock_get_timezone.return_value = 'UTC'
         mock_refresh_token.return_value = 'dummy_refresh_token'
