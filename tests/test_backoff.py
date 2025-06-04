@@ -169,7 +169,7 @@ class TestCampaignMonitorClient(unittest.TestCase):
 
     @patch('tap_campaign_monitor.client.CampaignMonitorClient.refresh_access_token')
     @patch('tap_campaign_monitor.client.CampaignMonitorClient.get_timezone')
-    def test_make_request_max_retries_reached(self, mock_get_timezone, mock_refresh_token):
+    def test_make_request_max_retries_reached_for_Server429Error(self, mock_get_timezone, mock_refresh_token):
         """
         Test that make_request raises ServerError after exceeding maximum retry attempts.
         """
@@ -191,5 +191,32 @@ class TestCampaignMonitorClient(unittest.TestCase):
             ]
 
             with self.assertRaises(Server429Error):
+                client.make_request('https://dummy-url.com', 'GET')
+            self.assertEqual(mock_request.call_count, 5)
+
+    @patch('tap_campaign_monitor.client.CampaignMonitorClient.refresh_access_token')
+    @patch('tap_campaign_monitor.client.CampaignMonitorClient.get_timezone')
+    def test_make_request_max_retries_reached_for_Server5xxError(self, mock_get_timezone, mock_refresh_token):
+        """
+        Test that make_request raises ServerError after exceeding maximum retry attempts.
+        """
+        mock_get_timezone.return_value = 'UTC'
+        mock_refresh_token.return_value = 'dummy_refresh_token'
+        client = CampaignMonitorClient(self.config)
+
+        with patch('requests.request') as mock_request:
+            error_response = MagicMock()
+            error_response.status_code = 500
+
+            mock_request.side_effect = [
+                error_response,
+                error_response,
+                error_response,
+                error_response,
+                error_response,
+                error_response
+            ]
+
+            with self.assertRaises(Server5xxError):
                 client.make_request('https://dummy-url.com', 'GET')
             self.assertEqual(mock_request.call_count, 5)
