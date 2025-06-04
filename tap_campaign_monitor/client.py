@@ -1,6 +1,7 @@
 import backoff
 import requests
 import requests.auth
+from requests.exceptions import ConnectionError
 import singer
 import singer.metrics
 import time
@@ -23,7 +24,7 @@ class CampaignMonitorClient:
 
     def __init__(self, config):
         self.config = config
-        self.refresh_access_token()
+        self.access_token = self.refresh_access_token()
         self.timezone = self.get_timezone()
         LOGGER.info("Client timezone is {}".format(self.timezone))
 
@@ -32,7 +33,7 @@ class CampaignMonitorClient:
         url = "https://api.createsend.com/oauth/token"
         data = {'grant_type': 'refresh_token', 'refresh_token': self.config['refresh_token']}
         response = requests.request("POST", url, data=data)
-        self.access_token = response.json()['access_token']
+        return response.json()['access_token']
 
     def get_timezone(self):
         url = (
