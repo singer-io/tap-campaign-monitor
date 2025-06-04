@@ -49,11 +49,7 @@ class CampaignMonitorClient:
 
     @backoff.on_exception(
         backoff.expo,
-        (
-            ConnectionError,
-            Server5xxError,
-            Server429Error,
-        ),
+        (ConnectionError, Server5xxError, Server429Error),
         max_tries=5,
         factor=2,
         on_backoff=lambda details: LOGGER.warning(
