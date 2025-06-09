@@ -10,7 +10,7 @@ import singer
 from tap_campaign_monitor.client import CampaignMonitorClient
 from tap_campaign_monitor.state import save_state
 from tap_campaign_monitor.streams import AVAILABLE_STREAMS
-from tap_campaign_monitor.streams.base import is_selected   
+from tap_campaign_monitor.streams.base import is_stream_selected
 
 LOGGER = singer.get_logger()  # noqa
 
@@ -37,7 +37,7 @@ def get_streams_to_replicate(config, state, catalog, client):
         return streams, campaign_substreams, list_substreams
 
     for stream_catalog in catalog.streams:
-        if not is_selected(stream_catalog):
+        if not is_stream_selected(stream_catalog):
             LOGGER.info("'{}' is not marked selected, skipping."
                         .format(stream_catalog.stream))
             continue

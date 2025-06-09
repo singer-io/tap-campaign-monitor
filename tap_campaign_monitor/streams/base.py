@@ -6,6 +6,7 @@ import dateutil.parser
 import os
 import pytz
 
+from singer import metadata as meta
 from singer.transform import Transformer, VALID_DATETIME_FORMATS, \
     NO_INTEGER_DATETIME_PARSING, UNIX_SECONDS_INTEGER_DATETIME_PARSING, \
     unix_seconds_to_datetime, unix_milliseconds_to_datetime
@@ -37,21 +38,14 @@ def string_to_datetime(value, timezone):
         return None
 
 
-def is_selected(stream_catalog):
-    metadata = singer.metadata.to_map(stream_catalog.metadata)
-    stream_metadata = metadata.get((), {})
+def is_stream_selected(stream):
+    stream_metadata = meta.to_map(stream.metadata)
 
-    inclusion = stream_metadata.get('inclusion')
-
-    if stream_metadata.get('selected') is not None:
-        selected = stream_metadata.get('selected')
-    else:
-        selected = stream_metadata.get('selected-by-default')
-
+    selected = meta.get(stream_metadata, (), 'selected')
+    inclusion = meta.get(stream_metadata, (), 'inclusion')
     if inclusion == 'unsupported':
         return False
-
-    elif selected is not None:
+    if selected is not None:
         return selected
 
     return inclusion == 'automatic'
@@ -118,7 +112,7 @@ class BaseStream:
     @classmethod
     def requirements_met(cls, catalog):
         selected_streams = [
-            s.stream for s in catalog.streams if is_selected(s)
+            s.stream for s in catalog.streams if is_stream_selected(s)
         ]
 
         return set(cls.REQUIRES).issubset(selected_streams)
