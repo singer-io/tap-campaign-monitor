@@ -123,9 +123,9 @@ class BaseStream:
 
     def generate_catalog(self):
         schema = self.get_schema()
-        mdata = singer.metadata.new()
+        mdata = meta.new()
 
-        mdata = singer.metadata.write(
+        mdata = meta.write(
             mdata,
             (),
             'inclusion',
@@ -138,7 +138,7 @@ class BaseStream:
             if field_name in self.KEY_PROPERTIES:
                 inclusion = 'automatic'
 
-            mdata = singer.metadata.write(
+            mdata = meta.write(
                 mdata,
                 ('properties', field_name),
                 'inclusion',
@@ -150,7 +150,7 @@ class BaseStream:
             'stream': self.TABLE,
             'key_properties': self.KEY_PROPERTIES,
             'schema': self.get_schema(),
-            'metadata': singer.metadata.to_list(mdata)
+            'metadata': meta.to_list(mdata)
         }]
 
     def write_schema(self):
@@ -164,7 +164,7 @@ class BaseStream:
             metadata = {}
 
             if self.catalog.metadata is not None:
-                metadata = singer.metadata.to_map(self.catalog.metadata)
+                metadata = meta.to_map(self.catalog.metadata)
 
             return tx.transform(
                 record,
