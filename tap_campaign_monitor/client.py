@@ -26,6 +26,8 @@ class CampaignMonitorClient:
         self.config = config
         self.access_token = self.refresh_access_token()
         self.timezone = self.get_timezone()
+        self.calls_remaining = None
+        self.limit_reset = None
         LOGGER.info("Client timezone is {}".format(self.timezone))
 
     def refresh_access_token(self):
@@ -50,8 +52,8 @@ class CampaignMonitorClient:
     @backoff.on_exception(
         backoff.expo,
         Server429Error,
-        max_tries=7,
-        factor=4,  # longer wait
+        max_tries=5,
+        factor=2,
         on_backoff=lambda details: LOGGER.warning(
             f"[RateLimit] Retrying {details['target'].__name__}, attempt {details['tries']}, "
             f"waiting {details['wait']:0.1f}s due to {repr(details['exception'])}"
@@ -70,6 +72,11 @@ class CampaignMonitorClient:
     def make_request(self, url, method, params=None, body=None):
         LOGGER.info("Making {} request to {}".format(method, url))
 
+        if self.calls_remaining is not None and self.calls_remaining == 0:
+            wait = self.limit_reset - int(time.monotonic())
+            if 0 < wait <= 300:
+                time.sleep(wait)
+
         response = requests.request(
             method,
             url,
@@ -79,6 +86,9 @@ class CampaignMonitorClient:
             },
             params=params,
             json=body)
+
+        self.calls_remaining = int(response.headers['X-Ratelimit-Remaining'])
+        self.limit_reset = int(float(response.headers['X-Ratelimit-Reset']))
 
         if response.status_code >= 500  and response.status_code < 600:
             raise Server5xxError()

@@ -181,20 +181,11 @@ class TestCampaignMonitorClient(unittest.TestCase):
             error_response = MagicMock()
             error_response.status_code = 429
 
-            mock_request.side_effect = [
-                error_response,
-                error_response,
-                error_response,
-                error_response,
-                error_response,
-                error_response,
-                error_response,
-                error_response
-            ]
+            mock_request.side_effect = [error_response] * 6
 
             with self.assertRaises(Server429Error):
                 client.make_request('https://dummy-url.com', 'GET')
-            self.assertEqual(mock_request.call_count, 7)
+            self.assertEqual(mock_request.call_count, 5)
 
     @patch('tap_campaign_monitor.client.CampaignMonitorClient.refresh_access_token')
     @patch('tap_campaign_monitor.client.CampaignMonitorClient.get_timezone')
@@ -210,14 +201,7 @@ class TestCampaignMonitorClient(unittest.TestCase):
             error_response = MagicMock()
             error_response.status_code = 500
 
-            mock_request.side_effect = [
-                error_response,
-                error_response,
-                error_response,
-                error_response,
-                error_response,
-                error_response
-            ]
+            mock_request.side_effect = [error_response] * 6
 
             with self.assertRaises(Server5xxError):
                 client.make_request('https://dummy-url.com', 'GET')
