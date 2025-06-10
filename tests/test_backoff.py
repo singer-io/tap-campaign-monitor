@@ -187,12 +187,14 @@ class TestCampaignMonitorClient(unittest.TestCase):
                 error_response,
                 error_response,
                 error_response,
+                error_response,
+                error_response,
                 error_response
             ]
 
             with self.assertRaises(Server429Error):
                 client.make_request('https://dummy-url.com', 'GET')
-            self.assertEqual(mock_request.call_count, 5)
+            self.assertEqual(mock_request.call_count, 7)
 
     @patch('tap_campaign_monitor.client.CampaignMonitorClient.refresh_access_token')
     @patch('tap_campaign_monitor.client.CampaignMonitorClient.get_timezone')
