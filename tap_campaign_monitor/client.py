@@ -49,12 +49,22 @@ class CampaignMonitorClient:
 
     @backoff.on_exception(
         backoff.expo,
-        (ConnectionError, Server5xxError, Server429Error),
+        Server429Error,
+        max_tries=7,
+        factor=4,  # longer wait
+        on_backoff=lambda details: LOGGER.warning(
+            f"[RateLimit] Retrying {details['target'].__name__}, attempt {details['tries']}, "
+            f"waiting {details['wait']:0.1f}s due to {repr(details['exception'])}"
+        )
+    )
+    @backoff.on_exception(
+        backoff.expo,
+        (ConnectionError, Server5xxError),
         max_tries=5,
         factor=2,
         on_backoff=lambda details: LOGGER.warning(
-            f"Retrying {details['target'].__name__}, attempt {details['tries']}, "
-            f"waiting {details['wait']:0.1f}s, after {repr(details['exception'])}"
+            f"[Retryable] Retrying {details['target'].__name__}, attempt {details['tries']}, "
+            f"waiting {details['wait']:0.1f}s due to {repr(details['exception'])}"
         )
     )
     def make_request(self, url, method, params=None, body=None):
