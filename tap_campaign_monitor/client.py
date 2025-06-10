@@ -4,7 +4,7 @@ import requests.auth
 from requests.exceptions import ConnectionError
 import singer
 import singer.metrics
-import time
+from time import sleep
 import pytz
 
 import tap_campaign_monitor.timezones
@@ -17,7 +17,9 @@ class Server5xxError(Exception):
 
 
 class Server429Error(Exception):
-    pass
+    def __init__(self, message=None, retry_after=None):
+        super().__init__(message)
+        self.retry_after = retry_after
 
 
 class CampaignMonitorClient:
@@ -50,20 +52,21 @@ class CampaignMonitorClient:
         return tap_campaign_monitor.timezones.from_string(timezone)
 
     @backoff.on_exception(
-        backoff.expo,
+        backoff.constant,
         Server429Error,
         max_tries=5,
-        factor=2,
-        on_backoff=lambda details: LOGGER.warning(
-            f"[RateLimit] Retrying {details['target'].__name__}, attempt {details['tries']}, "
-            f"waiting {details['wait']:0.1f}s due to {repr(details['exception'])}"
-        )
+        on_backoff=lambda details: (
+            LOGGER.warning(
+                f"[RateLimit] Retrying {details['target'].__name__}, attempt {details['tries']}, "
+                f"waiting {details['exception'].retry_after or 0}s due to rate limit {repr(details['exception'])}"
+            ),
+            sleep(details['exception'].retry_after or 0)
+        ),
     )
     @backoff.on_exception(
         backoff.expo,
         (ConnectionError, Server5xxError),
         max_tries=5,
-        factor=2,
         on_backoff=lambda details: LOGGER.warning(
             f"[Retryable] Retrying {details['target'].__name__}, attempt {details['tries']}, "
             f"waiting {details['wait']:0.1f}s due to {repr(details['exception'])}"
@@ -71,11 +74,6 @@ class CampaignMonitorClient:
     )
     def make_request(self, url, method, params=None, body=None):
         LOGGER.info("Making {} request to {}".format(method, url))
-
-        if self.calls_remaining is not None and self.calls_remaining == 0:
-            wait = self.limit_reset - int(time.monotonic())
-            if 0 < wait <= 300:
-                time.sleep(wait)
 
         response = requests.request(
             method,
@@ -87,13 +85,14 @@ class CampaignMonitorClient:
             params=params,
             json=body)
 
-        self.calls_remaining = int(response.headers['X-Ratelimit-Remaining'])
-        self.limit_reset = int(float(response.headers['X-Ratelimit-Reset']))
-
         if response.status_code >= 500  and response.status_code < 600:
             raise Server5xxError()
         elif response.status_code == 429:
-            raise Server429Error()
+            try:
+                retry_after = int(float(response.headers.get("X-RateLimit-Reset", 360)))
+            except (TypeError, ValueError):
+                retry_after = None
+            raise Server429Error(retry_after=retry_after)
         elif response.status_code != 200:
             raise RuntimeError(response.text)
 
