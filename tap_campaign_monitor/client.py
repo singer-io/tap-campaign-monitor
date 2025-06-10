@@ -70,7 +70,7 @@ class CampaignMonitorClient:
             params=params,
             json=body)
 
-        if response.status_code >= 500:
+        if response.status_code >= 500  and response.status_code < 600:
             raise Server5xxError()
         elif response.status_code == 429:
             raise Server429Error()
