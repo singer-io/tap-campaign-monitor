@@ -9,7 +9,7 @@ import pytz
 
 import tap_campaign_monitor.timezones
 
-RETRY_RATE_LIMIT = 4
+RETRY_RATE_LIMIT = 360
 
 LOGGER = singer.get_logger()  # noqa
 
