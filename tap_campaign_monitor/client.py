@@ -4,7 +4,7 @@ import requests.auth
 from requests.exceptions import ConnectionError
 import singer
 import singer.metrics
-from time import sleep
+import time
 import pytz
 
 import tap_campaign_monitor.timezones
