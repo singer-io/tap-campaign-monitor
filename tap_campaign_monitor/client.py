@@ -22,7 +22,6 @@ class Server429Error(Exception):
     pass
 
 
-
 class CampaignMonitorClient:
 
     def __init__(self, config):
