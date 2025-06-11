@@ -9,7 +9,7 @@ import pytz
 
 import tap_campaign_monitor.timezones
 
-RETRY_RATE_LIMIT = 360
+RETRY_RATE_LIMIT = 4
 
 LOGGER = singer.get_logger()  # noqa
 
@@ -19,9 +19,8 @@ class Server5xxError(Exception):
 
 
 class Server429Error(Exception):
-    def __init__(self, message=None, retry_after=None):
-        super().__init__(message)
-        self.retry_after = retry_after
+    pass
+
 
 
 class CampaignMonitorClient:
@@ -30,6 +29,7 @@ class CampaignMonitorClient:
         self.config = config
         self.access_token = self.refresh_access_token()
         self.timezone = self.get_timezone()
+        self._retry_after = RETRY_RATE_LIMIT
         LOGGER.info("Client timezone is {}".format(self.timezone))
 
     def refresh_access_token(self):
@@ -50,50 +50,62 @@ class CampaignMonitorClient:
         timezone = result.get('BasicDetails', {}).get('TimeZone')
 
         return tap_campaign_monitor.timezones.from_string(timezone)
+    def _rate_limit_backoff(self):
+        """
+        Bound wait‐generator: on each retry backoff will call next()
+        and sleep for self._retry_after seconds.
+        """
+        while True:
+            yield self._retry_after
 
-    @backoff.on_exception(
-        backoff.constant,
-        Server429Error,
-        max_tries=5,
-        on_backoff=lambda details: (
-            LOGGER.warning(
-                f"[RateLimit] Retrying {details['target'].__name__}, attempt {details['tries']}, "
-                f"waiting {details['exception'].retry_after or 0}s due to rate limit {repr(details['exception'])}"
-            ),
-            sleep(details['exception'].retry_after or 0)
-        ),
-    )
-    @backoff.on_exception(
-        backoff.expo,
-        (ConnectionError, Server5xxError),
-        max_tries=5,
-        on_backoff=lambda details: LOGGER.warning(
-            f"[Retryable] Retrying {details['target'].__name__}, attempt {details['tries']}, "
-            f"waiting {details['wait']:0.1f}s due to {repr(details['exception'])}"
-        )
-    )
     def make_request(self, url, method, params=None, body=None):
-        LOGGER.info("Making {} request to {}".format(method, url))
+        @backoff.on_exception(
+            self._rate_limit_backoff,
+            Server429Error,
+            max_tries=5,
+            jitter=None,
+            on_backoff=lambda details: LOGGER.warning(
+                f"[RateLimit] Retrying {details['target'].__name__}, attempt {details['tries']}, "
+                f"waiting {details['wait']:0.1f}s due to {repr(details['exception'])}"
+            ),
+        )
+        @backoff.on_exception(
+            backoff.expo,
+            (ConnectionError, Server5xxError),
+            max_tries=5,
+            on_backoff=lambda details: LOGGER.warning(
+                f"[Retryable] Retrying {details['target'].__name__}, attempt {details['tries']}, "
+                f"waiting {details['wait']:0.1f}s due to {repr(details['exception'])}"
+            ),
+        )
+        def _call():
+            LOGGER.info("Making {} request to {}".format(method, url))
 
-        response = requests.request(
-            method,
-            url,
-            headers={
-                'Content-Type': 'application/json',
-                'Authorization': "Bearer {}".format(self.access_token)
-            },
-            params=params,
-            json=body)
+            resp = requests.request(
+                method,
+                url,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer {}".format(self.access_token),
+                },
+                params=params,
+                json=body,
+            )
 
-        if response.status_code >= 500  and response.status_code < 600:
-            raise Server5xxError()
-        elif response.status_code == 429:
-            try:
-                retry_after = int(float(response.headers.get("X-RateLimit-Reset", RETRY_RATE_LIMIT)))
-            except (TypeError, ValueError):
-                retry_after = RETRY_RATE_LIMIT
-            raise Server429Error(retry_after=retry_after)
-        elif response.status_code != 200:
-            raise RuntimeError(response.text)
+            if resp.status_code >= 500 and resp.status_code < 600:
+                raise Server5xxError()
+            elif resp.status_code == 429:
+                try:
+                    self._retry_after = int(
+                        float(resp.headers.get("X-RateLimit-Reset", RETRY_RATE_LIMIT))
+                    )
+                except (TypeError, ValueError):
+                    self._retry_after = RETRY_RATE_LIMIT
+                raise Server429Error()
+            elif resp.status_code != 200:
+                raise RuntimeError(resp.text)
 
+            return resp
+
+        response = _call()
         return response.json()

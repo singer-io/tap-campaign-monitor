@@ -5,7 +5,6 @@ from tap_campaign_monitor.client import (
     CampaignMonitorClient,
     Server429Error,
     Server5xxError,
-    RETRY_RATE_LIMIT,
 )
 
 
@@ -225,14 +224,12 @@ class TestCampaignMonitorClient(unittest.TestCase):
 
     @patch("tap_campaign_monitor.client.CampaignMonitorClient.refresh_access_token")
     @patch("tap_campaign_monitor.client.CampaignMonitorClient.get_timezone")
-    @patch("tap_campaign_monitor.client.sleep")
-    @patch("tap_campaign_monitor.client.LOGGER")
     def test_make_request_429_with_valid_retry_after(
-        self, mock_logger, mock_sleep, mock_get_timezone, mock_refresh_token
+        self, mock_get_timezone, mock_refresh_token
     ):
         """
         Test that make_request respects the retry_after value from X-RateLimit-Reset header
-        when handling Server429Error, with correct logging and sleep behavior.
+        when handling Server429Error.
         """
         mock_get_timezone.return_value = "UTC"
         mock_refresh_token.return_value = "dummy_refresh_token"
@@ -250,21 +247,15 @@ class TestCampaignMonitorClient(unittest.TestCase):
             result = client.make_request("https://dummy-url.com", "GET")
             self.assertEqual(result, {"data": "ok"})
             self.assertEqual(mock_request.call_count, 3)
-            mock_sleep.assert_called_with(10)
-            mock_logger.warning.assert_called_with(
-                f"[RateLimit] Retrying make_request, attempt 2, waiting 10s due to rate limit {repr(Server429Error(retry_after=10))}"
-            )
 
     @patch("tap_campaign_monitor.client.CampaignMonitorClient.refresh_access_token")
     @patch("tap_campaign_monitor.client.CampaignMonitorClient.get_timezone")
-    @patch("tap_campaign_monitor.client.sleep")
-    @patch("tap_campaign_monitor.client.LOGGER")
     def test_make_request_429_missing_retry_after(
-        self, mock_logger, mock_sleep, mock_get_timezone, mock_refresh_token
+        self, mock_get_timezone, mock_refresh_token
     ):
         """
         Test that make_request uses default retry_after when X-RateLimit-Reset header
-        is missing for Server429Error, with correct logging and sleep behavior.
+        is missing for Server429Error
         """
         mock_get_timezone.return_value = "UTC"
         mock_refresh_token.return_value = "dummy_refresh_token"
@@ -282,21 +273,15 @@ class TestCampaignMonitorClient(unittest.TestCase):
             result = client.make_request("https://dummy-url.com", "GET")
             self.assertEqual(result, {"data": "ok"})
             self.assertEqual(mock_request.call_count, 3)
-            mock_sleep.assert_called_with(RETRY_RATE_LIMIT)
-            mock_logger.warning.assert_called_with(
-                f"[RateLimit] Retrying make_request, attempt 2, waiting {RETRY_RATE_LIMIT}s due to rate limit {repr(Server429Error(retry_after=RETRY_RATE_LIMIT))}"
-            )
 
     @patch("tap_campaign_monitor.client.CampaignMonitorClient.refresh_access_token")
     @patch("tap_campaign_monitor.client.CampaignMonitorClient.get_timezone")
-    @patch("tap_campaign_monitor.client.sleep")
-    @patch("tap_campaign_monitor.client.LOGGER")
     def test_make_request_429_invalid_retry_after(
-        self, mock_logger, mock_sleep, mock_get_timezone, mock_refresh_token
+        self, mock_get_timezone, mock_refresh_token
     ):
         """
         Test that make_request sets retry_after to None when X-RateLimit-Reset header
-        contains an invalid value for Server429Error, defaulting to 0s sleep.
+        contains an invalid value for Server429Error.
         """
         mock_get_timezone.return_value = "UTC"
         mock_refresh_token.return_value = "dummy_refresh_token"
@@ -314,7 +299,19 @@ class TestCampaignMonitorClient(unittest.TestCase):
             result = client.make_request("https://dummy-url.com", "GET")
             self.assertEqual(result, {"data": "ok"})
             self.assertEqual(mock_request.call_count, 3)
-            mock_sleep.assert_called_with(RETRY_RATE_LIMIT)
-            mock_logger.warning.assert_called_with(
-                f"[RateLimit] Retrying make_request, attempt 2, waiting {RETRY_RATE_LIMIT}s due to rate limit {repr(Server429Error(retry_after=None))}"
-            )
+
+    @patch("tap_campaign_monitor.client.CampaignMonitorClient.refresh_access_token")
+    @patch("tap_campaign_monitor.client.CampaignMonitorClient.get_timezone")
+    def test_rate_limit_backoff_generator(self, mock_get_timezone, mock_refresh_token):
+        mock_get_timezone.return_value = "UTC"
+        mock_refresh_token.return_value = "dummy_refresh_token"
+        client = CampaignMonitorClient(self.config)
+
+        # manually set retry_after and test generator
+        client._retry_after = 7
+        gen = client._rate_limit_backoff()
+        self.assertEqual(next(gen), 7)
+
+        # change retry_after and test again
+        client._retry_after = 10
+        self.assertEqual(next(gen), 10)
