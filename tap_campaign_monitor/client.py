@@ -28,8 +28,6 @@ class CampaignMonitorClient:
         self.config = config
         self.access_token = self.refresh_access_token()
         self.timezone = self.get_timezone()
-        self.calls_remaining = None
-        self.limit_reset = None
         LOGGER.info("Client timezone is {}".format(self.timezone))
 
     def refresh_access_token(self):
