@@ -303,6 +303,11 @@ class TestCampaignMonitorClient(unittest.TestCase):
     @patch("tap_campaign_monitor.client.CampaignMonitorClient.refresh_access_token")
     @patch("tap_campaign_monitor.client.CampaignMonitorClient.get_timezone")
     def test_rate_limit_backoff_generator(self, mock_get_timezone, mock_refresh_token):
+        """
+        Test that the custom backoff generator `_rate_limit_backoff` yields the most recent
+        `retry_after` value set on the CampaignMonitorClient instance. Ensures that the 
+        generator dynamically reflects updates to the `_retry_after` attribute.
+        """
         mock_get_timezone.return_value = "UTC"
         mock_refresh_token.return_value = "dummy_refresh_token"
         client = CampaignMonitorClient(self.config)
