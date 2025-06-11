@@ -286,7 +286,7 @@ class TestCampaignMonitorClient(unittest.TestCase):
             result = client.make_request('https://dummy-url.com', 'GET')
             self.assertEqual(result, {'data': 'ok'})
             self.assertEqual(mock_request.call_count, 3)
-            mock_sleep.assert_called_with(0)
+            mock_sleep.assert_called_with(360)
             mock_logger.warning.assert_called_with(
-                f"[RateLimit] Retrying make_request, attempt 2, waiting 0s due to rate limit {repr(Server429Error(retry_after=None))}"
+                f"[RateLimit] Retrying make_request, attempt 2, waiting 360s due to rate limit {repr(Server429Error(retry_after=None))}"
             )

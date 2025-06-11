@@ -9,6 +9,8 @@ import pytz
 
 import tap_campaign_monitor.timezones
 
+RETRY_RATE_LIMIT = 360
+
 LOGGER = singer.get_logger()  # noqa
 
 
@@ -87,9 +89,9 @@ class CampaignMonitorClient:
             raise Server5xxError()
         elif response.status_code == 429:
             try:
-                retry_after = int(float(response.headers.get("X-RateLimit-Reset", 360)))
+                retry_after = int(float(response.headers.get("X-RateLimit-Reset", RETRY_RATE_LIMIT)))
             except (TypeError, ValueError):
-                retry_after = None
+                retry_after = RETRY_RATE_LIMIT
             raise Server429Error(retry_after=retry_after)
         elif response.status_code != 200:
             raise RuntimeError(response.text)
