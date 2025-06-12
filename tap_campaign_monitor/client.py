@@ -26,9 +26,9 @@ class CampaignMonitorClient:
 
     def __init__(self, config):
         self.config = config
+        self._retry_after = RETRY_RATE_LIMIT
         self.access_token = self.refresh_access_token()
         self.timezone = self.get_timezone()
-        self._retry_after = RETRY_RATE_LIMIT
         LOGGER.info("Client timezone is {}".format(self.timezone))
 
     def refresh_access_token(self):
