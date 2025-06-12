@@ -17,6 +17,11 @@ setup(
         'backoff==2.2.1',
         'requests==2.32.3',
     ],
+    extras_require = {
+      "dev": [
+        "nose",
+      ],
+    },
     entry_points='''
         [console_scripts]
         tap-campaign-monitor=tap_campaign_monitor:main
