@@ -227,7 +227,6 @@ class TestCampaignMonitorClient(unittest.TestCase):
     @patch("tap_campaign_monitor.client.CampaignMonitorClient._rate_limit_backoff")
     def test_make_request_429_with_valid_retry_after(
         self,
-        mock_warning,
         mock_rate_limit_backoff,
         mock_get_timezone,
         mock_refresh_token,
