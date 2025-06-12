@@ -8,7 +8,24 @@ from tap_campaign_monitor.client import (
 )
 
 
-class TestCampaignMonitorClient(unittest.TestCase):
+from unittest.mock import patch
+
+
+class BaseTestCase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls._patcher = patch("tap_campaign_monitor.client.RETRY_RATE_LIMIT")
+        cls.mocked_retry_rate_limit = cls._patcher.start()
+        cls.mocked_retry_rate_limit.return_value = 1
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._patcher.stop()
+        super().tearDownClass()
+
+
+class TestCampaignMonitorClient(BaseTestCase):
 
     def setUp(self):
         self.config = {"refresh_token": "dummy_refresh", "client_id": "dummy_client"}
