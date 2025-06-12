@@ -222,7 +222,6 @@ class TestCampaignMonitorClient(unittest.TestCase):
                 client.make_request("https://dummy-url.com", "GET")
             self.assertEqual(mock_request.call_count, 5)
 
-    @patch("tap_campaign_monitor.client.LOGGER.warning")
     @patch("tap_campaign_monitor.client.CampaignMonitorClient.refresh_access_token")
     @patch("tap_campaign_monitor.client.CampaignMonitorClient.get_timezone")
     @patch("tap_campaign_monitor.client.CampaignMonitorClient._rate_limit_backoff")
@@ -335,8 +334,7 @@ class TestCampaignMonitorClient(unittest.TestCase):
     ):
         """
         Test that make_request actually drives the _rate_limit_backoff generator
-        for 429 errors: we patch time.sleep to capture the wait value, and
-        patch LOGGER.warning to ensure it logs the same wait.
+        for 429 errors: we patch time.sleep to capture the wait value
         """
         mock_get_timezone.return_value = "UTC"
         mock_refresh_token.return_value = "dummy_refresh_token"
