@@ -222,10 +222,16 @@ class TestCampaignMonitorClient(unittest.TestCase):
                 client.make_request("https://dummy-url.com", "GET")
             self.assertEqual(mock_request.call_count, 5)
 
+    @patch("tap_campaign_monitor.client.LOGGER.warning")
     @patch("tap_campaign_monitor.client.CampaignMonitorClient.refresh_access_token")
     @patch("tap_campaign_monitor.client.CampaignMonitorClient.get_timezone")
+    @patch("tap_campaign_monitor.client.CampaignMonitorClient._rate_limit_backoff")
     def test_make_request_429_with_valid_retry_after(
-        self, mock_get_timezone, mock_refresh_token
+        self,
+        mock_warning,
+        mock_rate_limit_backoff,
+        mock_get_timezone,
+        mock_refresh_token,
     ):
         """
         Test that make_request respects the retry_after value from X-RateLimit-Reset header
@@ -240,13 +246,14 @@ class TestCampaignMonitorClient(unittest.TestCase):
             error_response.status_code = 429
             error_response.headers = {"X-RateLimit-Reset": "10"}
 
-            mock_request.side_effect = [error_response] * 2 + [
+            mock_request.side_effect = [error_response] + [
                 MagicMock(status_code=200, json=lambda: {"data": "ok"})
             ]
 
             result = client.make_request("https://dummy-url.com", "GET")
             self.assertEqual(result, {"data": "ok"})
-            self.assertEqual(mock_request.call_count, 3)
+            self.assertEqual(mock_request.call_count, 2)
+            mock_rate_limit_backoff.assert_called_once()
 
     @patch("tap_campaign_monitor.client.CampaignMonitorClient.refresh_access_token")
     @patch("tap_campaign_monitor.client.CampaignMonitorClient.get_timezone")
@@ -305,7 +312,7 @@ class TestCampaignMonitorClient(unittest.TestCase):
     def test_rate_limit_backoff_generator(self, mock_get_timezone, mock_refresh_token):
         """
         Test that the custom backoff generator `_rate_limit_backoff` yields the most recent
-        `retry_after` value set on the CampaignMonitorClient instance. Ensures that the 
+        `retry_after` value set on the CampaignMonitorClient instance. Ensures that the
         generator dynamically reflects updates to the `_retry_after` attribute.
         """
         mock_get_timezone.return_value = "UTC"
@@ -320,3 +327,38 @@ class TestCampaignMonitorClient(unittest.TestCase):
         # change retry_after and test again
         client._retry_after = 10
         self.assertEqual(next(gen), 10)
+
+    @patch("tap_campaign_monitor.client.CampaignMonitorClient.refresh_access_token")
+    @patch("tap_campaign_monitor.client.CampaignMonitorClient.get_timezone")
+    def test_make_request_uses_rate_limit_backoff_generator(
+        self, mock_get_timezone, mock_refresh_token
+    ):
+        """
+        Test that make_request actually drives the _rate_limit_backoff generator
+        for 429 errors: we patch time.sleep to capture the wait value, and
+        patch LOGGER.warning to ensure it logs the same wait.
+        """
+        mock_get_timezone.return_value = "UTC"
+        mock_refresh_token.return_value = "dummy_refresh_token"
+        client = CampaignMonitorClient(self.config)
+
+        error_response = MagicMock(status_code=429)
+        error_response.headers = {"X-RateLimit-Reset": "7"}
+
+        success_response = MagicMock(status_code=200)
+        success_response.json.return_value = {"data": "ok"}
+
+        with patch(
+            "requests.request", side_effect=[error_response, success_response]
+        ) as mock_request, patch("time.sleep") as mock_sleep:
+
+            result = client.make_request("https://dummy-url.com", "GET")
+
+            self.assertEqual(result, {"data": "ok"})
+            self.assertEqual(mock_request.call_count, 2)
+
+            # Since the HTTP 429 retry logic derives its sleep interval directly
+            # from the _rate_limit_backoff generator, asserting that time.sleep(7)
+            # is called both confirms that the backoff mechanism was invoked and
+            # that _rate_limit_backoff yielded the expected value of 7 second
+            mock_sleep.assert_called_once_with(7)

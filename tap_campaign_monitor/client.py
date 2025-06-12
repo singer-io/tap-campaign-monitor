@@ -49,6 +49,7 @@ class CampaignMonitorClient:
         timezone = result.get('BasicDetails', {}).get('TimeZone')
 
         return tap_campaign_monitor.timezones.from_string(timezone)
+
     def _rate_limit_backoff(self):
         """
         Bound wait‐generator: on each retry backoff will call next()
@@ -63,19 +64,11 @@ class CampaignMonitorClient:
             Server429Error,
             max_tries=5,
             jitter=None,
-            on_backoff=lambda details: LOGGER.warning(
-                f"[RateLimit] Retrying {details['target'].__name__}, attempt {details['tries']}, "
-                f"waiting {details['wait']:0.1f}s due to {repr(details['exception'])}"
-            ),
         )
         @backoff.on_exception(
             backoff.expo,
             (ConnectionError, Server5xxError),
             max_tries=5,
-            on_backoff=lambda details: LOGGER.warning(
-                f"[Retryable] Retrying {details['target'].__name__}, attempt {details['tries']}, "
-                f"waiting {details['wait']:0.1f}s due to {repr(details['exception'])}"
-            ),
         )
         def _call():
             LOGGER.info("Making {} request to {}".format(method, url))
