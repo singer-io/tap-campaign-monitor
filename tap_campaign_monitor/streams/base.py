@@ -1,15 +1,17 @@
+import inspect
 import singer
 import singer.utils
 import singer.metrics
 import dateutil.parser
+import os
 import pytz
 
+from singer import metadata as meta
 from singer.transform import Transformer, VALID_DATETIME_FORMATS, \
     NO_INTEGER_DATETIME_PARSING, UNIX_SECONDS_INTEGER_DATETIME_PARSING, \
     unix_seconds_to_datetime, unix_milliseconds_to_datetime
 from singer.utils import strftime
 
-from tap_framework.streams import BaseStream as base
 from tap_campaign_monitor.state import incorporate, save_state, \
     get_last_record_value_for_table
 
@@ -34,6 +36,19 @@ def string_to_datetime(value, timezone):
         LOGGER.exception(ex)
         LOGGER.warning("%s, (%s)", ex, value)
         return None
+
+
+def is_stream_selected(stream):
+    stream_metadata = meta.to_map(stream.metadata)
+
+    selected = meta.get(stream_metadata, (), 'selected')
+    inclusion = meta.get(stream_metadata, (), 'inclusion')
+    if inclusion == 'unsupported':
+        return False
+    if selected is not None:
+        return selected
+
+    return inclusion == 'automatic'
 
 
 class CampaignMonitorTransformer(Transformer):
@@ -61,16 +76,95 @@ class CampaignMonitorTransformer(Transformer):
                 return string_to_datetime(value, self.timezone)
 
 
-class BaseStream(base):
+class BaseStream:
     KEY_PROPERTIES = ['id']
     API_METHOD = 'GET'
+    TABLE = None
+    REQUIRES = []
+
+    def __init__(self, config, state, catalog, client):
+        self.config = config
+        self.state = state
+        self.catalog = catalog
+        self.client = client
+        self.substreams = []
+
+    def get_class_path(self):
+        return os.path.dirname(inspect.getfile(self.__class__))
+
+    def load_schema_by_name(self, name):
+        return singer.utils.load_json(
+            os.path.normpath(
+                os.path.join(
+                    self.get_class_path(),
+                    '../schemas/{}.json'.format(name))))
+
+    def get_schema(self):
+        return self.load_schema_by_name(self.TABLE)
+
+    def get_stream_data(self, result):
+        """
+        Given a result set from Campaign Monitor, return the data
+        to be persisted for this stream.
+        """
+        raise RuntimeError("get_stream_data not implemented!")
+
+    @classmethod
+    def requirements_met(cls, catalog):
+        selected_streams = [
+            s.stream for s in catalog.streams if is_stream_selected(s)
+        ]
+
+        return set(cls.REQUIRES).issubset(selected_streams)
+
+    @classmethod
+    def matches_catalog(cls, stream_catalog):
+        return stream_catalog.stream == cls.TABLE
+
+    def generate_catalog(self):
+        schema = self.get_schema()
+        mdata = meta.new()
+
+        mdata = meta.write(
+            mdata,
+            (),
+            'inclusion',
+            'available'
+        )
+
+        for field_name, field_schema in schema.get('properties').items():
+            inclusion = 'available'
+
+            if field_name in self.KEY_PROPERTIES:
+                inclusion = 'automatic'
+
+            mdata = meta.write(
+                mdata,
+                ('properties', field_name),
+                'inclusion',
+                inclusion
+            )
+
+        return [{
+            'tap_stream_id': self.TABLE,
+            'stream': self.TABLE,
+            'key_properties': self.KEY_PROPERTIES,
+            'schema': self.get_schema(),
+            'metadata': meta.to_list(mdata)
+        }]
+
+    def write_schema(self):
+        singer.write_schema(
+            self.catalog.stream,
+            self.catalog.schema.to_dict(),
+            key_properties=self.catalog.key_properties)
 
     def transform_record(self, record):
         with CampaignMonitorTransformer(self.client.timezone) as tx:
             metadata = {}
 
             if self.catalog.metadata is not None:
-                metadata = singer.metadata.to_map(self.catalog.metadata)
+                metadata = meta.to_map(self.catalog.metadata)
 
             return tx.transform(
                 record,
