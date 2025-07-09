@@ -111,7 +111,7 @@ def main():
 
     if args.discover:
         do_discover(args)
-    else:
+    elif args.catalog:
         do_sync(args)
 
 
