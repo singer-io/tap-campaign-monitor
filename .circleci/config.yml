@@ -18,6 +18,13 @@ jobs:
           command: |
             source /usr/local/share/virtualenvs/tap-tester/bin/activate
             stitch-validate-json /usr/local/share/virtualenvs/tap-campaign-monitor/lib/python3.9/site-packages/tap_campaign_monitor/schemas/*.json
+      - run:
+          name: 'Integration Tests'
+          command: |
+            source /usr/local/share/virtualenvs/tap-tester/bin/activate
+            aws s3 cp s3://com-stitchdata-dev-deployment-assets/environments/tap-tester/tap_tester_sandbox dev_env.sh
+            source dev_env.sh
+            run-test --tap=tap-campaign-monitor tests
 workflows:
   version: 2
   commit:
