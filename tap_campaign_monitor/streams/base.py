@@ -81,7 +81,7 @@ class BaseStream:
     API_METHOD = 'GET'
     TABLE = None
     REQUIRES = []
-    PARENT = ""
+    PARENT = ''
 
     def __init__(self, config, state, catalog, client):
         self.config = config
