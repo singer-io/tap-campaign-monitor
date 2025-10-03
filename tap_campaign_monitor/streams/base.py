@@ -81,6 +81,8 @@ class BaseStream:
     API_METHOD = 'GET'
     TABLE = None
     REQUIRES = []
+    REPLICATION_METHOD = 'FULL_TABLE'
+    REPLICATION_KEYS = []
     PARENT = ''
 
     def __init__(self, config, state, catalog, client):
@@ -132,6 +134,14 @@ class BaseStream:
             'inclusion',
             'available'
         )
+
+        mdata = meta.get_standard_metadata(
+            schema=schema,
+            key_properties=getattr(self, "KEY_PROPERTIES") or [],
+            valid_replication_keys=(getattr(self, "REPLICATION_KEYS") or []),
+            replication_method=getattr(self, "REPLICATION_METHOD"),
+        )
+        mdata = meta.to_map(mdata)
 
         parent_tap_stream_id = getattr(self, 'PARENT', None)
         if parent_tap_stream_id:
