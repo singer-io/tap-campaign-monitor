@@ -7,6 +7,7 @@ class ListDetailsStream(ChildStream):
     KEY_PROPERTIES = ['ListID']
     TABLE = 'list_details'
     REQUIRES = ['lists']
+    PARENT = 'lists'
 
     def get_parent_id(self, parent):
         return parent.get('ListID')

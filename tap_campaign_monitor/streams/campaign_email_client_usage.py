@@ -5,6 +5,7 @@ class CampaignEmailClientUsageStream(ChildStream):
     KEY_PROPERTIES = ['CampaignID', 'Client', 'Version']
     TABLE = 'campaign_email_client_usage'
     REQUIRES = ['campaigns']
+    PARENT = 'campaigns'
 
     def get_parent_id(self, parent):
         return parent.get('CampaignID')
