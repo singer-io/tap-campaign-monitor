@@ -278,7 +278,3 @@ class TestCatalogProperties(unittest.TestCase):
                 
                 # Check metadata is a list
                 self.assertIsInstance(catalog_entry['metadata'], list)
-
-
-if __name__ == '__main__':
-    unittest.main()
