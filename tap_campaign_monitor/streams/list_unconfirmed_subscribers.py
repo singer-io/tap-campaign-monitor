@@ -5,6 +5,7 @@ class ListUnconfirmedSubscribersStream(DatePaginatedChildStream):
     KEY_PROPERTIES = ['ListID', 'EmailAddress', 'Date']
     TABLE = 'list_unconfirmed_subscribers'
     REQUIRES = ['lists']
+    PARENT = 'lists'
 
     def get_parent_id(self, parent):
         return parent.get('ListID')
