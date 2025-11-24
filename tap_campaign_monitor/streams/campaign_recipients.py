@@ -5,6 +5,7 @@ class CampaignRecipientsStream(PaginatedChildStream):
     KEY_PROPERTIES = ['CampaignID', 'ListID', 'EmailAddress']
     TABLE = 'campaign_recipients'
     REQUIRES = ['campaigns']
+    PARENT = 'campaigns'
 
     def get_parent_id(self, parent):
         return parent.get('CampaignID')

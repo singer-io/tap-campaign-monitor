@@ -5,6 +5,7 @@ class CampaignSpamComplaintsStream(DatePaginatedChildStream):
     KEY_PROPERTIES = ['CampaignID', 'ListID', 'EmailAddress', 'Date']
     TABLE = 'campaign_spam_complaints'
     REQUIRES = ['campaigns']
+    PARENT = 'campaigns'
 
     def get_parent_id(self, parent):
         return parent.get('CampaignID')
