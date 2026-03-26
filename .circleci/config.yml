@@ -12,7 +12,6 @@ jobs:
             source /usr/local/share/virtualenvs/tap-campaign-monitor/bin/activate
             uv pip install "pip==24.0" "setuptools==70.0.0"
             uv pip install .[dev]
-            uv pip install --upgrade urllib3 requests
       - run:
           name: 'JSON Validator'
           command: |
@@ -21,8 +20,8 @@ jobs:
       - run:
           name: 'pylint'
           command: |
-            source /usr/local/share/virtualenvs/tap-taboola/bin/activate
-            pylint tap_taboola -d C,R,W
+            source /usr/local/share/virtualenvs/tap-campaign-monitor/bin/activate
+            pylint tap_campaign_monitor  -d C,R,W
       - run:
           name: "Unit Tests"
           command: |
