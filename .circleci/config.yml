@@ -22,7 +22,10 @@ jobs:
           name: "Unit Tests"
           command: |
             source /usr/local/share/virtualenvs/tap-campaign-monitor/bin/activate
-            coverage run -m pytest tests/unittests
+            uv pip install pytest coverage
+            mkdir -p test_output
+            coverage run -m pytest tests/unittests --junitxml=test_output/report.xml
+            coverage report
             coverage html
       - store_test_results:
           path: test_output/report.xml
