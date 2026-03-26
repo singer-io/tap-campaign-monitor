@@ -8,6 +8,7 @@ class CampaignSummaryStream(ChildStream):
     KEY_PROPERTIES = ['CampaignID']
     TABLE = 'campaign_summary'
     REQUIRES = ['campaigns']
+    PARENT = 'campaigns'
 
     def get_parent_id(self, parent):
         return parent.get('CampaignID')

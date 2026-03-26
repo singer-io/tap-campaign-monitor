@@ -1,5 +1,7 @@
+import backoff
 import requests
 import requests.auth
+from requests.exceptions import ConnectionError
 import singer
 import singer.metrics
 import time
@@ -7,14 +9,25 @@ import pytz
 
 import tap_campaign_monitor.timezones
 
+RETRY_RATE_LIMIT = 360
+
 LOGGER = singer.get_logger()  # noqa
+
+
+class Server5xxError(Exception):
+    pass
+
+
+class Server429Error(Exception):
+    pass
 
 
 class CampaignMonitorClient:
 
     def __init__(self, config):
         self.config = config
-        self.refresh_access_token()
+        self._retry_after = RETRY_RATE_LIMIT
+        self.access_token = self.refresh_access_token()
         self.timezone = self.get_timezone()
         LOGGER.info("Client timezone is {}".format(self.timezone))
 
@@ -23,7 +36,7 @@ class CampaignMonitorClient:
         url = "https://api.createsend.com/oauth/token"
         data = {'grant_type': 'refresh_token', 'refresh_token': self.config['refresh_token']}
         response = requests.request("POST", url, data=data)
-        self.access_token = response.json()['access_token']
+        return response.json()['access_token']
 
     def get_timezone(self):
         url = (
@@ -37,34 +50,54 @@ class CampaignMonitorClient:
 
         return tap_campaign_monitor.timezones.from_string(timezone)
 
-    def make_request(self, url, method, base_backoff=30,
-                     params=None, body=None):
+    def _rate_limit_backoff(self):
+        """
+        Bound wait‐generator: on each retry backoff will call next()
+        and sleep for self._retry_after seconds.
+        """
+        while True:
+            yield self._retry_after
 
-        LOGGER.info("Making {} request to {}".format(method, url))
+    def make_request(self, url, method, params=None, body=None):
+        @backoff.on_exception(
+            self._rate_limit_backoff,
+            Server429Error,
+            max_tries=5,
+            jitter=None,
+        )
+        @backoff.on_exception(
+            backoff.expo,
+            (ConnectionError, Server5xxError),
+            max_tries=5,
+        )
+        def _call():
+            LOGGER.info("Making {} request to {}".format(method, url))
 
-        response = requests.request(
-            method,
-            url,
-            headers={
-                'Content-Type': 'application/json',
-                'Authorization': "Bearer {}".format(self.access_token)
-            },
-            params=params,
-            json=body)
+            resp = requests.request(
+                method,
+                url,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer {}".format(self.access_token),
+                },
+                params=params,
+                json=body,
+            )
 
-        if response.status_code in [429, 504]:
-            if base_backoff > 120:
-                raise RuntimeError('Backed off too many times, exiting!')
+            if resp.status_code >= 500 and resp.status_code < 600:
+                raise Server5xxError()
+            elif resp.status_code == 429:
+                try:
+                    self._retry_after = int(
+                        float(resp.headers.get("X-RateLimit-Reset", RETRY_RATE_LIMIT))
+                    )
+                except (TypeError, ValueError):
+                    self._retry_after = RETRY_RATE_LIMIT
+                raise Server429Error()
+            elif resp.status_code != 200:
+                raise RuntimeError(resp.text)
 
-            LOGGER.warn('Sleeping for {} seconds and trying again'
-                        .format(base_backoff))
+            return resp
 
-            time.sleep(base_backoff)
-
-            return self.make_request(
-                url, method, base_backoff * 2, params, body)
-
-        elif response.status_code != 200:
-            raise RuntimeError(response.text)
-
+        response = _call()
         return response.json()

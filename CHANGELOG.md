@@ -1,3 +1,7 @@
+## 1.1.0
+- Refactor Backoff implementation [#9](https://github.com/singer-io/tap-campaign-monitor/pull/9)
+- Library version upgrade
+
 ## 0.1.4
 
 - Fix timezone transform for python 3.5
