@@ -10,14 +10,18 @@ jobs:
           command: |
             uv venv --python 3.12 /usr/local/share/virtualenvs/tap-campaign-monitor
             source /usr/local/share/virtualenvs/tap-campaign-monitor/bin/activate
-            uv pip install -U pip setuptools
+            uv pip install "pip==24.0" "setuptools==70.0.0"
             uv pip install .[dev]
-      - add_ssh_keys
       - run:
           name: 'JSON Validator'
           command: |
             source /usr/local/share/virtualenvs/tap-tester/bin/activate
             stitch-validate-json /usr/local/share/virtualenvs/tap-campaign-monitor/lib/python3.12/site-packages/tap_campaign_monitor/schemas/*.json
+      - run:
+          name: 'pylint'
+          command: |
+            source /usr/local/share/virtualenvs/tap-taboola/bin/activate
+            pylint tap_taboola -d C,R,W
       - run:
           name: "Unit Tests"
           command: |
