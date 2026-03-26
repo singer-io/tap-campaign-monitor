@@ -20,6 +20,7 @@ setup(
     extras_require={
       "dev": [
         "nose",
+        "parameterized",
       ],
     },
     entry_points='''
