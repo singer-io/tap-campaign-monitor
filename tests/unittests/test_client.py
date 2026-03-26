@@ -96,8 +96,9 @@ class TestMakeRequest(unittest.TestCase):
         mock_sleep.assert_called_once_with(360)
         self.assertEqual(mock_request.call_count, 2)
 
+    @patch('tap_campaign_monitor.client.time.sleep')
     @patch('tap_campaign_monitor.client.requests.request')
-    def test_504_gateway_timeout_retries(self, mock_request):
+    def test_504_gateway_timeout_retries(self, mock_request, mock_sleep):
         """Test that 504 status triggers exponential backoff retry."""
         client = self._make_client()
         mock_request.side_effect = [
@@ -107,6 +108,7 @@ class TestMakeRequest(unittest.TestCase):
         result = client.make_request('https://api.example.com/test', 'GET')
         self.assertEqual(result, {'data': 'ok'})
         self.assertEqual(mock_request.call_count, 2)
+        mock_sleep.assert_called_once()
 
     @patch('tap_campaign_monitor.client.time.sleep')
     @patch('tap_campaign_monitor.client.requests.request')

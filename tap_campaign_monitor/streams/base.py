@@ -84,7 +84,6 @@ class BaseStream:
     REPLICATION_METHOD = 'FULL_TABLE'
     REPLICATION_KEYS = []
     PARENT = ''
-    api_path = None
 
     def __init__(self, config, state, catalog, client):
         self.config = config
@@ -201,9 +200,15 @@ class BaseStream:
             substreams = []
 
         table = self.TABLE
+
+        if not getattr(self, 'api_path', None):
+            raise NotImplementedError(
+                '{} must define a non-empty api_path'.format(
+                    self.__class__.__name__))
+
         url = (
             'https://api.createsend.com/api/v3.2{api_path}'.format(
-                api_path=self.api_path))
+                api_path=self.api_path))  # pylint: disable=no-member
 
         result = self.client.make_request(url, self.API_METHOD)
 
