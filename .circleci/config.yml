@@ -18,6 +18,11 @@ jobs:
             source /usr/local/share/virtualenvs/tap-tester/bin/activate
             stitch-validate-json /usr/local/share/virtualenvs/tap-campaign-monitor/lib/python3.12/site-packages/tap_campaign_monitor/schemas/*.json
       - run:
+          name: 'pylint'
+          command: |
+            source /usr/local/share/virtualenvs/tap-campaign-monitor/bin/activate
+            pylint tap_campaign_monitor  -d C,R,W
+      - run:
           name: "Unit Tests"
           command: |
             source /usr/local/share/virtualenvs/tap-campaign-monitor/bin/activate

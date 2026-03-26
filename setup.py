@@ -19,6 +19,8 @@ setup(
     ],
     extras_require={
       "dev": [
+        "pylint",
+        "ipdb",
         "nose",
         "parameterized",
       ],

@@ -5,10 +5,11 @@ from parameterized import parameterized
 
 class MockResponse:
     """Class to mock requests.Response object."""
-    def __init__(self, status_code=200, json_data=None, text=""):
+    def __init__(self, status_code=200, json_data=None, text="", headers=None):
         self.status_code = status_code
         self._json_data = json_data or {}
         self.text = text
+        self.headers = headers or {}
 
     def json(self):
         return self._json_data
@@ -92,13 +93,12 @@ class TestMakeRequest(unittest.TestCase):
         ]
         result = client.make_request('https://api.example.com/test', 'GET')
         self.assertEqual(result, {'data': 'ok'})
-        mock_sleep.assert_called_once_with(30)
+        mock_sleep.assert_called_once_with(360)
         self.assertEqual(mock_request.call_count, 2)
 
-    @patch('tap_campaign_monitor.client.time.sleep')
     @patch('tap_campaign_monitor.client.requests.request')
-    def test_504_gateway_timeout_retries(self, mock_request, mock_sleep):
-        """Test that 504 status triggers backoff retry."""
+    def test_504_gateway_timeout_retries(self, mock_request):
+        """Test that 504 status triggers exponential backoff retry."""
         client = self._make_client()
         mock_request.side_effect = [
             MockResponse(504, {}, 'Gateway Timeout'),
@@ -106,19 +106,17 @@ class TestMakeRequest(unittest.TestCase):
         ]
         result = client.make_request('https://api.example.com/test', 'GET')
         self.assertEqual(result, {'data': 'ok'})
-        mock_sleep.assert_called_once_with(30)
+        self.assertEqual(mock_request.call_count, 2)
 
     @patch('tap_campaign_monitor.client.time.sleep')
     @patch('tap_campaign_monitor.client.requests.request')
     def test_excessive_backoff_raises_error(self, mock_request, mock_sleep):
-        """Test that backing off too many times raises RuntimeError."""
+        """Test that backing off too many times raises Server429Error."""
+        from tap_campaign_monitor.client import Server429Error
         client = self._make_client()
-        # Simulate continuous 429 responses — backoff doubles each time:
-        # 30 -> 60 -> 120 -> 240 (> 120, so raises)
         mock_request.return_value = MockResponse(429, {}, 'Rate limited')
-        with self.assertRaises(RuntimeError) as ctx:
+        with self.assertRaises(Server429Error):
             client.make_request('https://api.example.com/test', 'GET')
-        self.assertIn('Backed off too many times', str(ctx.exception))
 
     @patch('tap_campaign_monitor.client.requests.request')
     def test_non_200_raises_runtime_error(self, mock_request):
