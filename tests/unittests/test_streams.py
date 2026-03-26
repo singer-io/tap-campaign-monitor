@@ -366,12 +366,20 @@ class TestDatePaginatedChildStreamSync(unittest.TestCase):
         parent = {'CampaignID': 'camp_123'}
         stream.sync_data(parent=parent)
 
-        # Verify the request included the date param
-        call_kwargs = client.make_request.call_args
-        params = call_kwargs[1].get('params') if call_kwargs[1] else call_kwargs[0][2] if len(call_kwargs[0]) > 2 else None
-        # The make_request call should have params with 'date' key
-        actual_params = client.make_request.call_args
-        self.assertIsNotNone(actual_params)
+        # Verify the request included the date param derived from state
+        call_args = client.make_request.call_args
+        self.assertIsNotNone(call_args)
+        args, kwargs = call_args
+        if 'params' in kwargs:
+            params = kwargs['params']
+        elif len(args) > 2:
+            params = args[2]
+        else:
+            params = {}
+        self.assertIsInstance(params, dict)
+        self.assertIn('date', params)
+        expected_date = parse(state['bookmarks']['camp_123.campaign_bounces']['last_record'])
+        self.assertEqual(params['date'], expected_date)
 
 
 class TestStreamGetStreamData(unittest.TestCase):
