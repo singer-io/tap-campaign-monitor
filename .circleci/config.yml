@@ -18,6 +18,25 @@ jobs:
           command: |
             source /usr/local/share/virtualenvs/tap-tester/bin/activate
             stitch-validate-json /usr/local/share/virtualenvs/tap-campaign-monitor/lib/python3.9/site-packages/tap_campaign_monitor/schemas/*.json
+      - run:
+          name: "Unit Tests"
+          command: |
+            source /usr/local/share/virtualenvs/tap-campaign-monitor/bin/activate
+            coverage run -m pytest tests/unittests
+            coverage html
+      - store_test_results:
+          path: test_output/report.xml
+      - store_artifacts:
+          path: htmlcov
+      - run:
+          name: "Integration Tests"
+          command: |
+            source /usr/local/share/virtualenvs/tap-campaign-monitor/bin/activate
+            uv pip install --upgrade awscli
+            aws s3 cp s3://com-stitchdata-dev-deployment-assets/environments/tap-tester/tap_tester_sandbox dev_env.sh
+            source dev_env.sh
+            unset USE_STITCH_BACKEND
+            run-test --tap=tap-campaign-monitor tests            
 workflows:
   version: 2
   commit:
