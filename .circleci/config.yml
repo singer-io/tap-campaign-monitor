@@ -12,6 +12,7 @@ jobs:
             source /usr/local/share/virtualenvs/tap-campaign-monitor/bin/activate
             uv pip install "pip==24.0" "setuptools==70.0.0"
             uv pip install .[dev]
+            uv pip install --upgrade urllib3 requests
       - run:
           name: 'JSON Validator'
           command: |

@@ -13,9 +13,8 @@ setup(
     url='https://www.stitchdata.com',
     classifiers=['Programming Language :: Python :: 3 :: Only'],
     install_requires=[
-        'tap-framework==0.1.1',
-        "singer-python==6.8.0",
-        "requests==2.32.5",
+        'tap-framework==0.0.5',
+        'singer-python==6.8.0',
     ],
     entry_points='''
         [console_scripts]
