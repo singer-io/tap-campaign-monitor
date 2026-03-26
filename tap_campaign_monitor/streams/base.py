@@ -84,6 +84,7 @@ class BaseStream:
     REPLICATION_METHOD = 'FULL_TABLE'
     REPLICATION_KEYS = []
     PARENT = ''
+    api_path = None
 
     def __init__(self, config, state, catalog, client):
         self.config = config
@@ -230,6 +231,10 @@ class ChildStream(BaseStream):
     def get_api_path_for_child(self, parent):
         raise NotImplementedError(
             'get_api_path_for_child is not implemented!')
+
+    def incorporate_parent_id(self, obj, parent):
+        raise NotImplementedError(
+            'incorporate_parent_id is not implemented!')
 
     def sync_data(self, parent=None):
         if parent is None:
