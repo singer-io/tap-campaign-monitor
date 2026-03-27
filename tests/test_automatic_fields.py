@@ -23,6 +23,5 @@ class CampaignMonitorAutomaticFields(MinimumSelectionTest, CampaignMonitorBaseTe
             "campaign_unsubscribes",
             # list subscriber streams with 0 records in test account
             "list_bounced_subscribers",
-            "list_unconfirmed_subscribers",
         }
         return self.expected_stream_names().difference(streams_to_exclude)

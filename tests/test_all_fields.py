@@ -13,6 +13,7 @@ class CampaignMonitorAllFields(AllFieldsTest, CampaignMonitorBaseTest):
     MISSING_FIELDS = {
         "list_active_subscribers": {"ConsentToTrack"},
         "list_deleted_subscribers": {"ConsentToTrack"},
+        "list_unconfirmed_subscribers": {"ConsentToTrack"},
         "list_unsubscribed_subscribers": {"ConsentToTrack"},
     }
 
@@ -31,6 +32,5 @@ class CampaignMonitorAllFields(AllFieldsTest, CampaignMonitorBaseTest):
             "campaign_unsubscribes",
             # list subscriber streams with 0 records in test account
             "list_bounced_subscribers",
-            "list_unconfirmed_subscribers",
         }
         return self.expected_stream_names().difference(streams_to_exclude)
