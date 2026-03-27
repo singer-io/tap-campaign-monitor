@@ -23,6 +23,8 @@ setup(
         "ipdb",
         "nose",
         "parameterized",
+        "pytest",
+        "coverage",
       ],
     },
     entry_points='''
