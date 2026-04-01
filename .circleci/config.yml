@@ -35,6 +35,18 @@ jobs:
           path: test_output/report.xml
       - store_artifacts:
           path: htmlcov
+      # ---------------------------------------------------------------
+      # Integration Tests Toggle (USE_TAPTESTER)
+      # ---------------------------------------------------------------
+      # By default, mocked integration tests run (no external API calls).
+      # To run real tap-tester integration tests against the live API,
+      # set the environment variable USE_TAPTESTER=true in one of:
+      #   - CircleCI project settings → Environment Variables
+      #   - The 'circleci-user' context in Organization Settings
+      #
+      # USE_TAPTESTER=true  → runs tap-tester (requires API credentials)
+      # USE_TAPTESTER=false (or unset) → runs mocked integration tests
+      # ---------------------------------------------------------------
       - run:
           name: "Integration Tests"
           command: |
