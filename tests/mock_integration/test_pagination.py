@@ -1,9 +1,9 @@
-"""Integration test: pagination — verify multi-page responses are fully
+"""Integration test: pagination -- verify multi-page responses are fully
 consumed for PaginatedChildStream and DatePaginatedChildStream."""
 import unittest
 from unittest.mock import patch
 
-from .base import CampaignMonitorMockBaseTest
+from .base import CampaignMonitorMockBaseTest, PAGE2_SEED
 
 
 class PaginationIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
@@ -34,8 +34,8 @@ class PaginationIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         # Two pages with 1 record each
         self.assertEqual(len(all_recipients), 2)
         emails = {r['EmailAddress'] for r in all_recipients}
-        self.assertIn('recipient1@example.com', emails)
-        self.assertIn('recipient2@example.com', emails)
+        # Page 1 (seed=0) and page 2 (seed=PAGE2_SEED) produce different emails
+        self.assertEqual(len(emails), 2, "Records from each page should differ")
 
     @patch("singer.write_state")
     @patch("singer.write_records")
@@ -49,11 +49,12 @@ class PaginationIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         client = self._create_paginated_mock_client()
         self._run_sync(catalog, client=client)
 
+        expected_parent_id = self.get_mock_parent_id('campaigns')
         for call_args in mock_write_records.call_args_list:
             if call_args[0][0] == 'campaign_recipients':
                 for record in call_args[0][1]:
                     self.assertIn('CampaignID', record)
-                    self.assertEqual(record['CampaignID'], 'camp-001')
+                    self.assertEqual(record['CampaignID'], expected_parent_id)
 
     # ------------------------------------------------------------------
     # DatePaginatedChildStream (campaign_bounces)
@@ -79,8 +80,7 @@ class PaginationIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
 
         self.assertEqual(len(all_bounces), 2)
         emails = {r['EmailAddress'] for r in all_bounces}
-        self.assertIn('bounce1@example.com', emails)
-        self.assertIn('bounce2@example.com', emails)
+        self.assertEqual(len(emails), 2, "Records from each page should differ")
 
     @patch("singer.write_state")
     @patch("singer.write_records")
@@ -95,10 +95,15 @@ class PaginationIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         state = self._run_sync(catalog, client=client)
 
         bookmarks = state.get('bookmarks', {})
-        bm = bookmarks.get('camp-001.campaign_bounces', {})
+        key = self.get_bookmark_key('campaigns', 'campaign_bounces')
+        bm = bookmarks.get(key, {})
         self.assertEqual(bm.get('field'), 'Date')
-        # Last record from page 2: "2024-06-17 09:00:00"
-        self.assertIn('2024-06-17', bm.get('last_record', ''))
+        # Page 2 record (seed=PAGE2_SEED) has a later date than page 1
+        page2_record = self.get_mock_records(
+            'campaign_bounces', count=1, base_seed=PAGE2_SEED)[0]
+        self.assertIn(
+            page2_record['Date'][:10],
+            bm.get('last_record', ''))
 
     # ------------------------------------------------------------------
     # DatePaginatedChildStream (list_active_subscribers)
@@ -124,8 +129,7 @@ class PaginationIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
 
         self.assertEqual(len(all_subs), 2)
         emails = {r['EmailAddress'] for r in all_subs}
-        self.assertIn('active1@example.com', emails)
-        self.assertIn('active2@example.com', emails)
+        self.assertEqual(len(emails), 2, "Records from each page should differ")
 
     @patch("singer.write_state")
     @patch("singer.write_records")
@@ -140,10 +144,14 @@ class PaginationIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         state = self._run_sync(catalog, client=client)
 
         bookmarks = state.get('bookmarks', {})
-        bm = bookmarks.get('list-001.list_active_subscribers', {})
+        key = self.get_bookmark_key('lists', 'list_active_subscribers')
+        bm = bookmarks.get(key, {})
         self.assertEqual(bm.get('field'), 'Date')
-        # Last record from page 2: "2024-02-20 11:00:00"
-        self.assertIn('2024-02-20', bm.get('last_record', ''))
+        page2_record = self.get_mock_records(
+            'list_active_subscribers', count=1, base_seed=PAGE2_SEED)[0]
+        self.assertIn(
+            page2_record['Date'][:10],
+            bm.get('last_record', ''))
 
     # ------------------------------------------------------------------
     # Single-page streams still work with paginated client

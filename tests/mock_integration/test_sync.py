@@ -44,7 +44,9 @@ class DoSyncIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         for call_args in mock_write_records.call_args_list:
             if call_args[0][0] == 'campaigns':
                 records = call_args[0][1]
-                self.assertEqual(len(records), len(self.MOCK_CAMPAIGNS))
+                self.assertEqual(
+                    len(records),
+                    self.get_expected_record_count('campaigns'))
                 return
         self.fail("No campaigns records written")
 
@@ -60,7 +62,9 @@ class DoSyncIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         for call_args in mock_write_records.call_args_list:
             if call_args[0][0] == 'lists':
                 records = call_args[0][1]
-                self.assertEqual(len(records), len(self.MOCK_LISTS))
+                self.assertEqual(
+                    len(records),
+                    self.get_expected_record_count('lists'))
                 return
         self.fail("No lists records written")
 
@@ -109,7 +113,6 @@ class DoSyncIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         for schema_call in mock_write_schema.call_args_list:
             stream_name = schema_call[0][0]
             if stream_name in expected:
-                # singer.write_schema(stream_name, schema_dict, key_properties)
                 key_props = schema_call[1].get('key_properties', schema_call[0][2]
                                                 if len(schema_call[0]) > 2 else None)
                 if key_props is not None:

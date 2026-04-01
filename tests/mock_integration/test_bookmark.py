@@ -1,5 +1,4 @@
-"""Integration test: bookmark / state — verify state is updated after
-syncing DatePaginatedChildStream streams."""
+"""Integration test: bookmark / state management for DatePaginatedChildStreams."""
 import unittest
 from unittest.mock import patch
 
@@ -11,7 +10,7 @@ class BookmarkIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
     @patch("singer.write_state")
     @patch("singer.write_records")
     @patch("singer.write_schema")
-    def test_date_paginated_stream_updates_state(
+    def test_date_paginated_child_stream_updates_state(
         self, mock_write_schema, mock_write_records, mock_write_state,
     ):
         """DatePaginatedChildStreams (e.g. campaign_bounces) should
@@ -21,8 +20,7 @@ class BookmarkIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         state = self._run_sync(catalog)
 
         bookmarks = state.get('bookmarks', {})
-        # Bookmark key format: "{CampaignID}.{table}"
-        expected_key = "camp-001.campaign_bounces"
+        expected_key = self.get_bookmark_key('campaigns', 'campaign_bounces')
         self.assertIn(expected_key, bookmarks)
         bookmark = bookmarks[expected_key]
         self.assertEqual(bookmark.get('field'), 'Date')
@@ -54,7 +52,7 @@ class BookmarkIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         state = self._run_sync(catalog)
 
         bookmarks = state.get('bookmarks', {})
-        expected_key = "list-001.list_active_subscribers"
+        expected_key = self.get_bookmark_key('lists', 'list_active_subscribers')
         self.assertIn(expected_key, bookmarks)
         bookmark = bookmarks[expected_key]
         self.assertEqual(bookmark.get('field'), 'Date')
@@ -87,9 +85,12 @@ class BookmarkIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         state = self._run_sync(catalog)
 
         bookmarks = state.get('bookmarks', {})
-        self.assertIn('camp-001.campaign_bounces', bookmarks)
-        self.assertIn('camp-001.campaign_clicks', bookmarks)
-        self.assertIn('camp-001.campaign_opens', bookmarks)
+        self.assertIn(
+            self.get_bookmark_key('campaigns', 'campaign_bounces'), bookmarks)
+        self.assertIn(
+            self.get_bookmark_key('campaigns', 'campaign_clicks'), bookmarks)
+        self.assertIn(
+            self.get_bookmark_key('campaigns', 'campaign_opens'), bookmarks)
 
     @patch("singer.write_state")
     @patch("singer.write_records")
@@ -103,7 +104,8 @@ class BookmarkIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         state = self._run_sync(catalog)
 
         bookmarks = state.get('bookmarks', {})
-        bm = bookmarks.get('camp-001.campaign_bounces', {})
+        key = self.get_bookmark_key('campaigns', 'campaign_bounces')
+        bm = bookmarks.get(key, {})
         self.assertIn('field', bm)
         self.assertIn('last_record', bm)
         self.assertEqual(bm['field'], 'Date')

@@ -1,17 +1,17 @@
-"""Integration test: start-date / bookmark resume — verify that
+"""Integration test: start-date / bookmark resume -- verify that
 DatePaginatedChildStream passes the bookmark date to the API and that
 a second sync with prior state picks up where it left off."""
 import unittest
 from unittest.mock import patch
 
-from .base import CampaignMonitorMockBaseTest
+from .base import CampaignMonitorMockBaseTest, RECENT_DATA_SEED
 
 
 class StartDateIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
     """Test that bookmarked state is used as a start_date on subsequent syncs."""
 
     # ------------------------------------------------------------------
-    # First sync: no initial state → no date param sent
+    # First sync: no initial state -> no date param sent
     # ------------------------------------------------------------------
 
     @patch("singer.write_state")
@@ -39,7 +39,7 @@ class StartDateIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
                 return
 
     # ------------------------------------------------------------------
-    # Second sync: prior bookmark → date param sent
+    # Second sync: prior bookmark -> date param sent
     # ------------------------------------------------------------------
 
     @patch("singer.write_state")
@@ -52,18 +52,18 @@ class StartDateIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         be sent to the API."""
         catalog = self._make_selected_catalog(
             stream_names=['campaigns', 'campaign_bounces'])
+        bm_key = self.get_bookmark_key('campaigns', 'campaign_bounces')
         initial_state = {
             'bookmarks': {
-                'camp-001.campaign_bounces': {
+                bm_key: {
                     'field': 'Date',
-                    'last_record': '2024-06-16 08:00:00',
+                    'last_record': self.get_initial_bookmark_date(),
                 }
             }
         }
         client = self._create_date_filtering_mock_client()
         self._run_sync(catalog, state=initial_state, client=client)
 
-        # Find the bounces API call
         for call_args in client.make_request.call_args_list:
             url = call_args[0][0]
             if '/bounces.json' in url:
@@ -84,11 +84,12 @@ class StartDateIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         the bookmark date."""
         catalog = self._make_selected_catalog(
             stream_names=['campaigns', 'campaign_bounces'])
+        bm_key = self.get_bookmark_key('campaigns', 'campaign_bounces')
         initial_state = {
             'bookmarks': {
-                'camp-001.campaign_bounces': {
+                bm_key: {
                     'field': 'Date',
-                    'last_record': '2024-06-16 08:00:00',
+                    'last_record': self.get_initial_bookmark_date(),
                 }
             }
         }
@@ -100,10 +101,11 @@ class StartDateIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
             if call_args[0][0] == 'campaign_bounces':
                 bounced_records.extend(call_args[0][1])
 
-        # With date filter, mock returns MOCK_CAMPAIGN_BOUNCES_RECENT (1 record)
+        # With date filter, mock returns 1 "recent" record
         self.assertEqual(len(bounced_records), 1)
+        recent = self.get_recent_record('campaign_bounces')
         self.assertEqual(
-            bounced_records[0]['EmailAddress'], 'recent-bounce@example.com')
+            bounced_records[0]['EmailAddress'], recent['EmailAddress'])
 
     @patch("singer.write_state")
     @patch("singer.write_records")
@@ -115,11 +117,12 @@ class StartDateIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         the second sync."""
         catalog = self._make_selected_catalog(
             stream_names=['campaigns', 'campaign_bounces'])
+        bm_key = self.get_bookmark_key('campaigns', 'campaign_bounces')
         initial_state = {
             'bookmarks': {
-                'camp-001.campaign_bounces': {
+                bm_key: {
                     'field': 'Date',
-                    'last_record': '2024-06-16 08:00:00',
+                    'last_record': self.get_initial_bookmark_date(),
                 }
             }
         }
@@ -127,9 +130,9 @@ class StartDateIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         state = self._run_sync(catalog, state=initial_state, client=client)
 
         bookmarks = state.get('bookmarks', {})
-        bm = bookmarks.get('camp-001.campaign_bounces', {})
-        # MOCK_CAMPAIGN_BOUNCES_RECENT has Date "2024-07-01 10:00:00"
-        self.assertIn('2024-07-01', bm.get('last_record', ''))
+        bm = bookmarks.get(bm_key, {})
+        recent_date = self.get_recent_date('campaign_bounces')
+        self.assertIn(recent_date[:10], bm.get('last_record', ''))
 
     # ------------------------------------------------------------------
     # Full-table parent streams ignore start_date
@@ -163,8 +166,12 @@ class StartDateIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
             elif call_args[0][0] == 'lists':
                 lists_records.extend(call_args[0][1])
 
-        self.assertEqual(len(campaigns_records), len(self.MOCK_CAMPAIGNS))
-        self.assertEqual(len(lists_records), len(self.MOCK_LISTS))
+        self.assertEqual(
+            len(campaigns_records),
+            self.get_expected_record_count('campaigns'))
+        self.assertEqual(
+            len(lists_records),
+            self.get_expected_record_count('lists'))
 
     # ------------------------------------------------------------------
     # List subscriber start_date
@@ -179,18 +186,18 @@ class StartDateIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         """list_active_subscribers uses bookmark on second sync."""
         catalog = self._make_selected_catalog(
             stream_names=['lists', 'list_active_subscribers'])
+        bm_key = self.get_bookmark_key('lists', 'list_active_subscribers')
         initial_state = {
             'bookmarks': {
-                'list-001.list_active_subscribers': {
+                bm_key: {
                     'field': 'Date',
-                    'last_record': '2024-01-01 00:00:00',
+                    'last_record': self.get_initial_bookmark_date(),
                 }
             }
         }
         client = self._create_date_filtering_mock_client()
         self._run_sync(catalog, state=initial_state, client=client)
 
-        # Verify date param was sent
         for call_args in client.make_request.call_args_list:
             url = call_args[0][0]
             if '/active.json' in url:
@@ -215,19 +222,20 @@ class StartDateIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
         """Running two syncs: first populates state, second uses it."""
         catalog = self._make_selected_catalog(
             stream_names=['campaigns', 'campaign_bounces'])
+        bm_key = self.get_bookmark_key('campaigns', 'campaign_bounces')
 
-        # First sync — no initial state
+        # First sync -- no initial state
         state1 = self._run_sync(catalog, state={})
         self.assertIn('bookmarks', state1)
-        self.assertIn('camp-001.campaign_bounces', state1['bookmarks'])
+        self.assertIn(bm_key, state1['bookmarks'])
 
-        # Second sync — re-uses state from first
+        # Second sync -- re-uses state from first
         mock_write_records.reset_mock()
         client2 = self._create_date_filtering_mock_client()
         state2 = self._run_sync(catalog, state=state1, client=client2)
 
         # State still has bookmarks after second sync
-        self.assertIn('camp-001.campaign_bounces', state2['bookmarks'])
-        bm = state2['bookmarks']['camp-001.campaign_bounces']
+        self.assertIn(bm_key, state2['bookmarks'])
+        bm = state2['bookmarks'][bm_key]
         self.assertEqual(bm['field'], 'Date')
         self.assertIsNotNone(bm['last_record'])
