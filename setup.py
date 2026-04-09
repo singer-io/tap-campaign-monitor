@@ -12,7 +12,6 @@ setup(
     author='Stitch Data, Fishtown Analytics',
     url='https://www.stitchdata.com',
     classifiers=['Programming Language :: Python :: 3 :: Only'],
-    python_requires='>=3.12',
     install_requires=[
         'singer-python==6.8.0',
         'requests==2.32.5',
