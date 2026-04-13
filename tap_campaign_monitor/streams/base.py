@@ -85,6 +85,11 @@ class BaseStream:
     REPLICATION_KEYS = []
     PARENT = ''
 
+    @property
+    def api_path(self):
+        raise NotImplementedError(
+            f"{self.__class__.__name__} must define api_path")
+
     def __init__(self, config, state, catalog, client):
         self.config = config
         self.state = state
@@ -201,14 +206,9 @@ class BaseStream:
 
         table = self.TABLE
 
-        if not getattr(self, 'api_path', None):
-            raise NotImplementedError(
-                '{} must define a non-empty api_path'.format(
-                    self.__class__.__name__))
-
         url = (
             'https://api.createsend.com/api/v3.2{api_path}'.format(
-                api_path=self.api_path))  # pylint: disable=no-member
+                api_path=self.api_path))
 
         result = self.client.make_request(url, self.API_METHOD)
 
