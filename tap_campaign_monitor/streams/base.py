@@ -85,6 +85,11 @@ class BaseStream:
     REPLICATION_KEYS = []
     PARENT = ''
 
+    @property
+    def api_path(self):
+        raise NotImplementedError(
+            f"{self.__class__.__name__} must define api_path")
+
     def __init__(self, config, state, catalog, client):
         self.config = config
         self.state = state
@@ -200,6 +205,7 @@ class BaseStream:
             substreams = []
 
         table = self.TABLE
+
         url = (
             'https://api.createsend.com/api/v3.2{api_path}'.format(
                 api_path=self.api_path))
@@ -230,6 +236,10 @@ class ChildStream(BaseStream):
     def get_api_path_for_child(self, parent):
         raise NotImplementedError(
             'get_api_path_for_child is not implemented!')
+
+    def incorporate_parent_id(self, obj, parent):
+        raise NotImplementedError(
+            'incorporate_parent_id is not implemented!')
 
     def sync_data(self, parent=None):
         if parent is None:

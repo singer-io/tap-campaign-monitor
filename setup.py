@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='tap-campaign-monitor',
-    version='1.1.0',
+    version='1.2.0',
     description=(
         'Singer.io tap for extracting data from the '
         'Campaign Monitor API'
@@ -13,13 +13,18 @@ setup(
     url='https://www.stitchdata.com',
     classifiers=['Programming Language :: Python :: 3 :: Only'],
     install_requires=[
-        'singer-python==6.1.1',
+        'singer-python==6.8.0',
+        'requests==2.33.1',
         'backoff==2.2.1',
-        'requests==2.32.4',
     ],
-    extras_require = {
+    extras_require={
       "dev": [
+        "pylint",
+        "ipdb",
         "nose",
+        "parameterized",
+        "pytest",
+        "coverage",
       ],
     },
     entry_points='''

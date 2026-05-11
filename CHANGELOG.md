@@ -1,3 +1,7 @@
+## 1.2.0
+- Updated python version. [#11](https://github.com/singer-io/tap-campaign-monitor/pull/11)
+- Added integration tests.
+
 ## 1.1.0
 - Refactor Backoff implementation [#9](https://github.com/singer-io/tap-campaign-monitor/pull/9)
 - Library version upgrade

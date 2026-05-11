@@ -1,7 +1,7 @@
 import backoff
 import requests
 import requests.auth
-from requests.exceptions import ConnectionError
+from requests.exceptions import ChunkedEncodingError, ConnectionError, Timeout
 import singer
 import singer.metrics
 import time
@@ -67,7 +67,7 @@ class CampaignMonitorClient:
         )
         @backoff.on_exception(
             backoff.expo,
-            (ConnectionError, Server5xxError),
+            (ConnectionError, Server5xxError, Timeout, ChunkedEncodingError),
             max_tries=5,
         )
         def _call():

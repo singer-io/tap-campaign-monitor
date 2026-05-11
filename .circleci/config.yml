@@ -8,21 +8,59 @@ jobs:
       - run:
           name: 'Setup virtual env'
           command: |
-            uv venv --python 3.9 /usr/local/share/virtualenvs/tap-campaign-monitor
+            uv venv --python 3.12 /usr/local/share/virtualenvs/tap-campaign-monitor
             source /usr/local/share/virtualenvs/tap-campaign-monitor/bin/activate
-            uv pip install -U pip setuptools
+            uv pip install "pip==24.0" "setuptools==70.0.0"
             uv pip install .[dev]
-      - add_ssh_keys
       - run:
           name: 'JSON Validator'
           command: |
             source /usr/local/share/virtualenvs/tap-tester/bin/activate
-            stitch-validate-json /usr/local/share/virtualenvs/tap-campaign-monitor/lib/python3.9/site-packages/tap_campaign_monitor/schemas/*.json
+            stitch-validate-json tap_campaign_monitor/schemas/*.json
       - run:
-          name: 'Unit Tests'
+          name: 'pylint'
           command: |
             source /usr/local/share/virtualenvs/tap-campaign-monitor/bin/activate
-            nosetests tests            
+            pylint tap_campaign_monitor  -d C,R,W
+      - run:
+          name: "Unit Tests"
+          command: |
+            source /usr/local/share/virtualenvs/tap-campaign-monitor/bin/activate
+            mkdir -p test_output
+            coverage run -m pytest tests/unittests --junitxml=test_output/report.xml
+            coverage report
+            coverage html
+      - store_test_results:
+          path: test_output/report.xml
+      - store_artifacts:
+          path: htmlcov
+      # ---------------------------------------------------------------
+      # Integration Tests Toggle (USE_TAPTESTER)
+      # ---------------------------------------------------------------
+      # By default, mocked integration tests run (no external API calls).
+      # To run real tap-tester integration tests against the live API,
+      # set the environment variable USE_TAPTESTER=true in one of:
+      #   - CircleCI project settings → Environment Variables
+      #   - The 'circleci-user' context in Organization Settings
+      #
+      # USE_TAPTESTER=true  → runs tap-tester (requires API credentials)
+      # USE_TAPTESTER=false (or unset) → runs mocked integration tests
+      # ---------------------------------------------------------------
+      - run:
+          name: "Integration Tests"
+          command: |
+            if [ "${USE_TAPTESTER}" = "true" ]; then
+              echo "Running tap-tester integration tests..."
+              source /usr/local/share/virtualenvs/tap-tester/bin/activate
+              uv pip install --upgrade awscli
+              aws s3 cp s3://com-stitchdata-dev-deployment-assets/environments/tap-tester/tap_tester_sandbox dev_env.sh
+              source dev_env.sh
+              run-test --tap=tap-campaign-monitor tests
+            else
+              echo "Running mocked integration tests..."
+              source /usr/local/share/virtualenvs/tap-campaign-monitor/bin/activate
+              python -m pytest tests/mock_integration/ -v
+            fi
 workflows:
   version: 2
   commit:
