@@ -15,17 +15,67 @@ from tap_campaign_monitor.streams.base import is_stream_selected
 LOGGER = singer.get_logger()  # noqa
 
 
-def do_discover(args):
+def _apply_access_checks(config, client, streams):
+    """
+    Check each parent stream for API access. Returns the set of parent
+    stream TABLE names that are inaccessible (HTTP 403).
+    """
+    inaccessible = set()
+    for stream_cls in streams:
+        if stream_cls.PARENT:
+            continue  # child streams are checked via their parent
+        stream = stream_cls(config, None, None, client)
+        if not stream.check_access():
+            LOGGER.warning(
+                "Stream '%s' is not accessible (HTTP 403). "
+                "Excluding it and its children from the catalog.",
+                stream_cls.TABLE,
+            )
+            inaccessible.add(stream_cls.TABLE)
+    return inaccessible
+
+
+def _prune_inaccessible_children(streams, inaccessible_parents):
+    """
+    Return a filtered list of stream classes, removing any parent that is
+    inaccessible and any child whose parent is inaccessible.
+    """
+    accessible = []
+    for stream_cls in streams:
+        if stream_cls.TABLE in inaccessible_parents:
+            continue
+        if stream_cls.PARENT and stream_cls.PARENT in inaccessible_parents:
+            LOGGER.warning(
+                "Excluding child stream '%s' because parent '%s' is inaccessible.",
+                stream_cls.TABLE,
+                stream_cls.PARENT,
+            )
+            continue
+        accessible.append(stream_cls)
+    return accessible
+
+
+def do_discover(client, config):
     LOGGER.info("Starting discovery.")
 
+    inaccessible_parents = _apply_access_checks(config, client, AVAILABLE_STREAMS)
+    accessible_streams = _prune_inaccessible_children(AVAILABLE_STREAMS, inaccessible_parents)
+
+    parent_streams = [s for s in AVAILABLE_STREAMS if not s.PARENT]
+    accessible_parents = [s for s in accessible_streams if not s.PARENT]
+    if parent_streams and not accessible_parents:
+        raise Exception(
+            "No streams are accessible with the provided credentials. "
+            "Please verify your API credentials and permissions."
+        )
+
     catalog = []
-
-    for available_stream in AVAILABLE_STREAMS:
-        stream = available_stream(args.config, args.state, None, None)
-
+    for stream_cls in accessible_streams:
+        stream = stream_cls(config, None, None, None)
         catalog += stream.generate_catalog()
 
     json.dump({'streams': catalog}, sys.stdout, indent=4)
+    LOGGER.info("Finished discover")
 
 
 def get_streams_to_replicate(config, state, catalog, client):
@@ -110,7 +160,8 @@ def main():
         required_config_keys=['client_id', 'refresh_token'])
 
     if args.discover:
-        do_discover(args)
+        client = CampaignMonitorClient(args.config)
+        do_discover(client, args.config)
     elif args.catalog:
         do_sync(args)
 

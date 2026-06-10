@@ -1,3 +1,7 @@
+## 1.3.0
+- HTTP 403 streams are excluded from the catalog during discovery instead of failing. Raises an error only if no parent streams are accessible.
+- Updated `requests` dependency from `2.33.1` to `2.34.2`.
+
 ## 1.2.0
 - Updated python version. [#11](https://github.com/singer-io/tap-campaign-monitor/pull/11)
 - Added integration tests.

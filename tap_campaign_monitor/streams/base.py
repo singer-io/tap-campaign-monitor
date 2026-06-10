@@ -129,6 +129,24 @@ class BaseStream:
     def matches_catalog(cls, stream_catalog):
         return stream_catalog.stream == cls.TABLE
 
+    def check_access(self):
+        """
+        Check if this stream is accessible with the current credentials.
+        Child streams always return True since their accessibility is
+        determined by their parent stream.
+        """
+        from tap_campaign_monitor.client import CampaignMonitorForbiddenError
+
+        if self.PARENT:
+            return True
+
+        try:
+            url = 'https://api.createsend.com/api/v3.2{}'.format(self.api_path)
+            self.client.make_request(url, self.API_METHOD)
+            return True
+        except CampaignMonitorForbiddenError:
+            return False
+
     def generate_catalog(self):
         schema = self.get_schema()
         mdata = meta.new()
