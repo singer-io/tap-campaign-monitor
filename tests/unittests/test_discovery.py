@@ -233,7 +233,7 @@ class TestDoDiscover(unittest.TestCase):
     def test_all_parents_forbidden_raises_exception(self):
         """When no parent stream is accessible, do_discover raises an Exception."""
         client = _make_client(forbidden_tables={"campaigns", "lists"})
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(RuntimeError) as ctx:
             do_discover(client, CONFIG)
         self.assertIn("No streams are accessible", str(ctx.exception))
 

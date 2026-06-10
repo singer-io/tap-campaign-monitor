@@ -64,7 +64,7 @@ def do_discover(client, config):
     parent_streams = [s for s in AVAILABLE_STREAMS if not s.PARENT]
     accessible_parents = [s for s in accessible_streams if not s.PARENT]
     if parent_streams and not accessible_parents:
-        raise Exception(
+        raise RuntimeError(
             "No streams are accessible with the provided credentials. "
             "Please verify your API credentials and permissions."
         )
