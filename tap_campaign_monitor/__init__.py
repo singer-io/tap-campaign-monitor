@@ -20,7 +20,7 @@ def _apply_access_checks(config, client, streams):
     Check each parent stream for API access. Returns the set of parent
     stream TABLE names that are inaccessible (HTTP 403).
     """
-    inaccessible = set()
+    inaccessible_streams = set()
     for stream_cls in streams:
         if stream_cls.PARENT:
             continue  # child streams are checked via their parent
@@ -31,8 +31,8 @@ def _apply_access_checks(config, client, streams):
                 "Excluding it and its children from the catalog.",
                 stream_cls.TABLE,
             )
-            inaccessible.add(stream_cls.TABLE)
-    return inaccessible
+            inaccessible_streams.add(stream_cls.TABLE)
+    return inaccessible_streams
 
 
 def _prune_inaccessible_children(streams, inaccessible_parents):
@@ -40,7 +40,7 @@ def _prune_inaccessible_children(streams, inaccessible_parents):
     Return a filtered list of stream classes, removing any parent that is
     inaccessible and any child whose parent is inaccessible.
     """
-    accessible = []
+    accessible_streams = []
     for stream_cls in streams:
         if stream_cls.TABLE in inaccessible_parents:
             continue
@@ -51,8 +51,8 @@ def _prune_inaccessible_children(streams, inaccessible_parents):
                 stream_cls.PARENT,
             )
             continue
-        accessible.append(stream_cls)
-    return accessible
+        accessible_streams.append(stream_cls)
+    return accessible_streams
 
 
 def do_discover(client, config):
