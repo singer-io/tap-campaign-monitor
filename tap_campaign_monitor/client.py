@@ -40,7 +40,14 @@ class CampaignMonitorClient:
         url = "https://api.createsend.com/oauth/token"
         data = {'grant_type': 'refresh_token', 'refresh_token': self.config['refresh_token']}
         response = requests.request("POST", url, data=data)
-        return response.json()['access_token']
+        payload = response.json()
+        if 'access_token' not in payload:
+            raise CampaignMonitorForbiddenError(
+                "Invalid credentials: {}".format(
+                    payload.get('error_description') or payload.get('error') or response.text
+                )
+            )
+        return payload['access_token']
 
     def get_timezone(self):
         url = (
