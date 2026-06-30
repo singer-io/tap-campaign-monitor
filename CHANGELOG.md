@@ -1,5 +1,5 @@
 ## 1.3.0
-- Streams the credentials cannot access (403) are now excluded from the catalog during discovery instead of raising an error. [#12](https://github.com/singer-io/tap-campaign-monitor/pull/12)
+- Streams the credentials cannot access (403) are now excluded from the catalog during discovery instead of raising an error. [#17](https://github.com/singer-io/tap-campaign-monitor/pull/17)
 - Bump to requests==2.34.2
 
 ## 1.2.0

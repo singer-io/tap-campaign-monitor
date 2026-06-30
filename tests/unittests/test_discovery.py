@@ -55,28 +55,23 @@ class TestCheckAccess(unittest.TestCase):
 class TestDiscovery(unittest.TestCase):
     """Unit tests for do_discover access control."""
 
-    def _run_discover(self, args):
+    def _run_discover(self, args, client):
         from tap_campaign_monitor import do_discover
         with patch('sys.stdout', new_callable=StringIO) as mock_stdout:
-            do_discover(args)
+            do_discover(args, client)
             return json.loads(mock_stdout.getvalue())
 
-    @patch('tap_campaign_monitor.discover.CampaignMonitorForbiddenError', CampaignMonitorForbiddenError)
-    @patch('tap_campaign_monitor.CampaignMonitorClient')
-    def test_all_streams_accessible_returns_full_catalog(self, mock_client_cls):
+    def test_all_streams_accessible_returns_full_catalog(self):
         """All streams returned when all parent streams are accessible."""
-        mock_client_cls.return_value = _mock_client()
-        args = _make_args()
-        catalog = self._run_discover(args)
+        client = _mock_client()
+        catalog = self._run_discover(_make_args(), client)
         stream_names = {s['stream'] for s in catalog['streams']}
         self.assertIn('campaigns', stream_names)
         self.assertIn('lists', stream_names)
         self.assertIn('campaign_bounces', stream_names)
         self.assertIn('list_active_subscribers', stream_names)
 
-    @patch('tap_campaign_monitor.discover.CampaignMonitorForbiddenError', CampaignMonitorForbiddenError)
-    @patch('tap_campaign_monitor.CampaignMonitorClient')
-    def test_inaccessible_parent_excluded_from_catalog(self, mock_client_cls):
+    def test_inaccessible_parent_excluded_from_catalog(self):
         """campaigns and its children are excluded when campaigns returns 403."""
         client = _mock_client()
 
@@ -85,30 +80,22 @@ class TestDiscovery(unittest.TestCase):
                 raise CampaignMonitorForbiddenError("Forbidden")
 
         client.make_request.side_effect = make_request_side_effect
-        mock_client_cls.return_value = client
-        args = _make_args()
-        catalog = self._run_discover(args)
+        catalog = self._run_discover(_make_args(), client)
         stream_names = {s['stream'] for s in catalog['streams']}
         self.assertNotIn('campaigns', stream_names)
         self.assertNotIn('campaign_bounces', stream_names)
         self.assertIn('lists', stream_names)
         self.assertIn('list_active_subscribers', stream_names)
 
-    @patch('tap_campaign_monitor.discover.CampaignMonitorForbiddenError', CampaignMonitorForbiddenError)
-    @patch('tap_campaign_monitor.CampaignMonitorClient')
-    def test_all_parents_inaccessible_raises_error(self, mock_client_cls):
+    def test_all_parents_inaccessible_raises_error(self):
         """Raises CampaignMonitorForbiddenError when no parent stream is accessible."""
+        from tap_campaign_monitor import do_discover
         client = _mock_client()
         client.make_request.side_effect = CampaignMonitorForbiddenError("Forbidden")
-        mock_client_cls.return_value = client
-        args = _make_args()
-        from tap_campaign_monitor import do_discover
         with self.assertRaises(CampaignMonitorForbiddenError):
-            do_discover(args)
+            do_discover(_make_args(), client)
 
-    @patch('tap_campaign_monitor.discover.CampaignMonitorForbiddenError', CampaignMonitorForbiddenError)
-    @patch('tap_campaign_monitor.CampaignMonitorClient')
-    def test_child_excluded_when_parent_excluded(self, mock_client_cls):
+    def test_child_excluded_when_parent_excluded(self):
         """Child streams are excluded when parent is inaccessible."""
         client = _mock_client()
 
@@ -117,9 +104,7 @@ class TestDiscovery(unittest.TestCase):
                 raise CampaignMonitorForbiddenError("Forbidden")
 
         client.make_request.side_effect = make_request_side_effect
-        mock_client_cls.return_value = client
-        args = _make_args()
-        catalog = self._run_discover(args)
+        catalog = self._run_discover(_make_args(), client)
         stream_names = {s['stream'] for s in catalog['streams']}
         self.assertNotIn('lists', stream_names)
         self.assertNotIn('list_active_subscribers', stream_names)

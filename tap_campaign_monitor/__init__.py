@@ -16,9 +16,19 @@ from tap_campaign_monitor.streams.base import is_stream_selected
 LOGGER = singer.get_logger()  # noqa
 
 
-def do_discover(args):
+def verify_credentials(config):
+    LOGGER.info("Verifying credentials.")
+    try:
+        client = CampaignMonitorClient(config)
+        LOGGER.info("Credentials verified successfully.")
+        return client
+    except Exception as e:
+        LOGGER.critical("Credential verification failed: %s", e)
+        raise
+
+
+def do_discover(args, client):
     LOGGER.info("Starting discovery.")
-    client = CampaignMonitorClient(args.config)
     catalog = discover(args.config, args.state, client)
     json.dump({'streams': catalog}, sys.stdout, indent=4)
 
@@ -63,10 +73,8 @@ def get_streams_to_replicate(config, state, catalog, client):
     return streams, campaign_substreams, list_substreams
 
 
-def do_sync(args):
+def do_sync(args, client):
     LOGGER.info("Starting sync.")
-
-    client = CampaignMonitorClient(args.config)
 
     state = args.state
 
@@ -104,10 +112,12 @@ def main():
     args = singer.utils.parse_args(
         required_config_keys=['client_id', 'refresh_token'])
 
+    client = verify_credentials(args.config)
+
     if args.discover:
-        do_discover(args)
+        do_discover(args, client)
     elif args.catalog:
-        do_sync(args)
+        do_sync(args, client)
 
 
 if __name__ == '__main__':
