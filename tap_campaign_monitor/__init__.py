@@ -8,6 +8,7 @@ import singer
 
 
 from tap_campaign_monitor.client import CampaignMonitorClient
+from tap_campaign_monitor.discover import discover
 from tap_campaign_monitor.state import save_state
 from tap_campaign_monitor.streams import AVAILABLE_STREAMS
 from tap_campaign_monitor.streams.base import is_stream_selected
@@ -17,14 +18,8 @@ LOGGER = singer.get_logger()  # noqa
 
 def do_discover(args):
     LOGGER.info("Starting discovery.")
-
-    catalog = []
-
-    for available_stream in AVAILABLE_STREAMS:
-        stream = available_stream(args.config, args.state, None, None)
-
-        catalog += stream.generate_catalog()
-
+    client = CampaignMonitorClient(args.config)
+    catalog = discover(args.config, args.state, client)
     json.dump({'streams': catalog}, sys.stdout, indent=4)
 
 

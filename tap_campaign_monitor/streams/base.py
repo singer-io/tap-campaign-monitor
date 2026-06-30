@@ -97,6 +97,25 @@ class BaseStream:
         self.client = client
         self.substreams = []
 
+    def check_access(self):
+        """
+        Verify that the API credentials have read access to this stream.
+        Returns True if accessible, False if a 403 Forbidden error is raised.
+        Child streams always return True (access is governed by the parent check).
+        """
+        from tap_campaign_monitor.client import CampaignMonitorForbiddenError
+        if self.PARENT:
+            return True
+        url = 'https://api.createsend.com/api/v3.2{}'.format(self.api_path)
+        try:
+            self.client.make_request(url, self.API_METHOD)
+            return True
+        except CampaignMonitorForbiddenError as exc:
+            LOGGER.warning(
+                "Permission Error: Stream '%s' - %s",
+                self.__class__.__name__, exc)
+            return False
+
     def get_class_path(self):
         return os.path.dirname(inspect.getfile(self.__class__))
 

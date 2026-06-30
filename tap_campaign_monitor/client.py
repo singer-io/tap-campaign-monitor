@@ -22,6 +22,10 @@ class Server429Error(Exception):
     pass
 
 
+class CampaignMonitorForbiddenError(Exception):
+    pass
+
+
 class CampaignMonitorClient:
 
     def __init__(self, config):
@@ -94,6 +98,8 @@ class CampaignMonitorClient:
                 except (TypeError, ValueError):
                     self._retry_after = RETRY_RATE_LIMIT
                 raise Server429Error()
+            elif resp.status_code == 403:
+                raise CampaignMonitorForbiddenError(resp.text)
             elif resp.status_code != 200:
                 raise RuntimeError(resp.text)
 
