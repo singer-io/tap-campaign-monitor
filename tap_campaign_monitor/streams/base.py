@@ -100,7 +100,7 @@ class BaseStream:
     def check_access(self):
         """
         Verify that the API credentials have read access to this stream.
-        Returns True if accessible, False if a 403 Forbidden error is raised.
+        Returns True if accessible, False if a 401 or 403 error is raised.
         Child streams always return True (access is governed by the parent check).
         """
         from tap_campaign_monitor.client import CampaignMonitorForbiddenError
