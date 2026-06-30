@@ -124,10 +124,28 @@ class TestMakeRequest(unittest.TestCase):
     def test_non_200_raises_runtime_error(self, mock_request):
         """Test that non-200 non-retryable status raises RuntimeError."""
         client = self._make_client()
-        mock_request.return_value = MockResponse(401, {}, 'Unauthorized')
+        mock_request.return_value = MockResponse(404, {}, 'Not Found')
         with self.assertRaises(RuntimeError) as ctx:
             client.make_request('https://api.example.com/test', 'GET')
-        self.assertIn('Unauthorized', str(ctx.exception))
+        self.assertIn('Not Found', str(ctx.exception))
+
+    @patch('tap_campaign_monitor.client.requests.request')
+    def test_401_raises_forbidden_error(self, mock_request):
+        """Test that 401 raises CampaignMonitorForbiddenError."""
+        from tap_campaign_monitor.client import CampaignMonitorForbiddenError
+        client = self._make_client()
+        mock_request.return_value = MockResponse(401, {}, 'Unauthorized')
+        with self.assertRaises(CampaignMonitorForbiddenError):
+            client.make_request('https://api.example.com/test', 'GET')
+
+    @patch('tap_campaign_monitor.client.requests.request')
+    def test_403_raises_forbidden_error(self, mock_request):
+        """Test that 403 raises CampaignMonitorForbiddenError."""
+        from tap_campaign_monitor.client import CampaignMonitorForbiddenError
+        client = self._make_client()
+        mock_request.return_value = MockResponse(403, {}, 'Forbidden')
+        with self.assertRaises(CampaignMonitorForbiddenError):
+            client.make_request('https://api.example.com/test', 'GET')
 
     @patch('tap_campaign_monitor.client.requests.request')
     def test_request_with_params_and_body(self, mock_request):

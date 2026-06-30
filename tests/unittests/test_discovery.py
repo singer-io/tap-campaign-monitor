@@ -44,10 +44,17 @@ class TestCheckAccess(unittest.TestCase):
         self.assertTrue(stream.check_access())
         client.make_request.assert_called_once()
 
-    def test_parent_stream_forbidden(self):
+    def test_parent_stream_forbidden_403(self):
         """Parent stream returns False when 403 is raised."""
         client = _mock_client()
         client.make_request.side_effect = CampaignMonitorForbiddenError("Forbidden")
+        stream = CampaignsStream(CONFIG, STATE, None, client)
+        self.assertFalse(stream.check_access())
+
+    def test_parent_stream_forbidden_401(self):
+        """Parent stream returns False when 401 (Unauthorized) is raised."""
+        client = _mock_client()
+        client.make_request.side_effect = CampaignMonitorForbiddenError("Unauthorized")
         stream = CampaignsStream(CONFIG, STATE, None, client)
         self.assertFalse(stream.check_access())
 

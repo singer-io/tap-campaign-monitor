@@ -1,6 +1,9 @@
 """Integration test: discovery produces correct catalog and metadata."""
 import unittest
 
+from tap_campaign_monitor.client import CampaignMonitorForbiddenError
+from tap_campaign_monitor.discover import discover
+
 from .base import CampaignMonitorMockBaseTest
 
 
@@ -69,3 +72,50 @@ class DiscoveryIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
                                 'available',
                                 f"{field_name} should be available",
                             )
+
+
+class DiscoveryExclusionIntegrationTest(CampaignMonitorMockBaseTest, unittest.TestCase):
+    """Integration tests: unauthorized streams are excluded from catalog."""
+
+    def _run_discover_with_client(self, client):
+        return discover(self.default_config, {}, client)
+
+    def test_all_streams_present_when_all_accessible(self):
+        """Full catalog returned when no streams are blocked."""
+        client = self._create_mock_client()
+        entries = self._run_discover_with_client(client)
+        stream_ids = {e['tap_stream_id'] for e in entries}
+        self.assertEqual(stream_ids, self.ALL_STREAM_IDS)
+
+    def test_campaigns_and_children_excluded_when_403(self):
+        """campaigns + campaign_* excluded when campaigns returns 403."""
+        client = self._create_forbidden_mock_client(blocked_streams={'campaigns'})
+        entries = self._run_discover_with_client(client)
+        stream_ids = {e['tap_stream_id'] for e in entries}
+        campaign_streams = {s for s in self.ALL_STREAM_IDS
+                            if s == 'campaigns' or s.startswith('campaign_')}
+        self.assertTrue(campaign_streams.isdisjoint(stream_ids),
+                        f"Unexpected campaign streams in catalog: {campaign_streams & stream_ids}")
+        lists_streams = {s for s in self.ALL_STREAM_IDS
+                         if s == 'lists' or s.startswith('list_')}
+        self.assertTrue(lists_streams.issubset(stream_ids))
+
+    def test_lists_and_children_excluded_when_403(self):
+        """lists + list_* excluded when lists returns 403."""
+        client = self._create_forbidden_mock_client(blocked_streams={'lists'})
+        entries = self._run_discover_with_client(client)
+        stream_ids = {e['tap_stream_id'] for e in entries}
+        list_streams = {s for s in self.ALL_STREAM_IDS
+                        if s == 'lists' or s.startswith('list_')}
+        self.assertTrue(list_streams.isdisjoint(stream_ids),
+                        f"Unexpected list streams in catalog: {list_streams & stream_ids}")
+        campaign_streams = {s for s in self.ALL_STREAM_IDS
+                            if s == 'campaigns' or s.startswith('campaign_')}
+        self.assertTrue(campaign_streams.issubset(stream_ids))
+
+    def test_all_parents_blocked_raises_forbidden_error(self):
+        """CampaignMonitorForbiddenError raised when all parents blocked."""
+        client = self._create_forbidden_mock_client(
+            blocked_streams={'campaigns', 'lists'})
+        with self.assertRaises(CampaignMonitorForbiddenError):
+            self._run_discover_with_client(client)

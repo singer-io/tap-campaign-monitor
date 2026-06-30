@@ -454,6 +454,26 @@ class CampaignMonitorMockBaseTest:
 
         return mock_fn
 
+    @classmethod
+    def _create_forbidden_mock_client(cls, blocked_streams=()):
+        """Mock client that raises CampaignMonitorForbiddenError for
+        *blocked_streams* (parent stream TABLE names)."""
+        from tap_campaign_monitor.client import CampaignMonitorForbiddenError
+        normal_fn = cls._mock_make_request()
+
+        def mock_fn(url, method, params=None, body=None):
+            stream_name = cls._match_stream(url)
+            if stream_name in blocked_streams:
+                raise CampaignMonitorForbiddenError(
+                    '{"Code": 401, "Message": "Unauthorized"}')
+            return normal_fn(url, method, params=params, body=body)
+
+        client = MagicMock()
+        client.timezone = pytz.UTC
+        client.config = dict(cls.default_config)
+        client.make_request = MagicMock(side_effect=mock_fn)
+        return client
+
     # ---- Date-filtering mock client ---- #
 
     @classmethod

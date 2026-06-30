@@ -98,7 +98,7 @@ class CampaignMonitorClient:
                 except (TypeError, ValueError):
                     self._retry_after = RETRY_RATE_LIMIT
                 raise Server429Error()
-            elif resp.status_code == 403:
+            elif resp.status_code in (401, 403):
                 raise CampaignMonitorForbiddenError(resp.text)
             elif resp.status_code != 200:
                 raise RuntimeError(resp.text)
