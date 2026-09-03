@@ -112,8 +112,10 @@ class BaseStream:
             return True
         except CampaignMonitorForbiddenError as exc:
             LOGGER.warning(
-                "Permission Error: Stream '%s' - %s",
-                self.__class__.__name__, exc)
+                "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
+                self.TABLE,
+                str(exc),
+            )
             return False
 
     def get_class_path(self):

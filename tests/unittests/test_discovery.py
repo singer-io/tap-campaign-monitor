@@ -58,6 +58,21 @@ class TestCheckAccess(unittest.TestCase):
         stream = CampaignsStream(CONFIG, STATE, None, client)
         self.assertFalse(stream.check_access())
 
+    @patch('tap_campaign_monitor.streams.base.LOGGER.warning')
+    def test_parent_stream_forbidden_logs_unauthorized_stream(self, mock_warning):
+        """Parent stream logs unauthorized stream details when access is denied."""
+        client = _mock_client()
+        client.make_request.side_effect = CampaignMonitorForbiddenError("Forbidden")
+        stream = CampaignsStream(CONFIG, STATE, None, client)
+
+        self.assertFalse(stream.check_access())
+
+        mock_warning.assert_called_once_with(
+            "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
+            'campaigns',
+            'Forbidden',
+        )
+
 
 class TestDiscovery(unittest.TestCase):
     """Unit tests for do_discover access control."""
