@@ -33,6 +33,21 @@ class TestCampaignMonitorClientInit(unittest.TestCase):
 class TestRefreshAccessToken(unittest.TestCase):
     """Test the refresh_access_token method."""
 
+    @patch('tap_campaign_monitor.client.requests.request')
+    def test_refresh_access_token_missing_token_raises_unauthorized(self, mock_request):
+        """Test that a missing access_token raises CampaignMonitorUnauthorizedError."""
+        from tap_campaign_monitor.client import (
+            CampaignMonitorClient, CampaignMonitorUnauthorizedError,
+        )
+        mock_request.return_value = MockResponse(
+            400, {'error': 'invalid_grant', 'error_description': 'Refresh token revoked'}
+        )
+        config = {'client_id': 'test_id', 'refresh_token': 'bad_token'}
+        with self.assertRaises(CampaignMonitorUnauthorizedError) as ctx:
+            CampaignMonitorClient(config)
+        self.assertIn('401', str(ctx.exception))
+        self.assertIn('Refresh token revoked', str(ctx.exception))
+
     @patch('tap_campaign_monitor.client.CampaignMonitorClient.get_timezone')
     @patch('tap_campaign_monitor.client.requests.request')
     def test_refresh_access_token_success(self, mock_request, mock_tz):
@@ -130,22 +145,38 @@ class TestMakeRequest(unittest.TestCase):
         self.assertIn('Not Found', str(ctx.exception))
 
     @patch('tap_campaign_monitor.client.requests.request')
-    def test_401_raises_forbidden_error(self, mock_request):
-        """Test that 401 raises CampaignMonitorForbiddenError."""
-        from tap_campaign_monitor.client import CampaignMonitorForbiddenError
+    def test_401_raises_unauthorized_error(self, mock_request):
+        """Test that 401 raises CampaignMonitorUnauthorizedError with the status code preserved."""
+        from tap_campaign_monitor.client import CampaignMonitorUnauthorizedError
         client = self._make_client()
         mock_request.return_value = MockResponse(401, {}, 'Unauthorized')
-        with self.assertRaises(CampaignMonitorForbiddenError):
+        with self.assertRaises(CampaignMonitorUnauthorizedError) as ctx:
             client.make_request('https://api.example.com/test', 'GET')
+        self.assertIn('401', str(ctx.exception))
+        self.assertIn('Unauthorized', str(ctx.exception))
 
     @patch('tap_campaign_monitor.client.requests.request')
     def test_403_raises_forbidden_error(self, mock_request):
-        """Test that 403 raises CampaignMonitorForbiddenError."""
+        """Test that 403 raises CampaignMonitorForbiddenError with the status code preserved."""
         from tap_campaign_monitor.client import CampaignMonitorForbiddenError
         client = self._make_client()
         mock_request.return_value = MockResponse(403, {}, 'Forbidden')
-        with self.assertRaises(CampaignMonitorForbiddenError):
+        with self.assertRaises(CampaignMonitorForbiddenError) as ctx:
             client.make_request('https://api.example.com/test', 'GET')
+        self.assertIn('403', str(ctx.exception))
+        self.assertIn('Forbidden', str(ctx.exception))
+
+    @patch('tap_campaign_monitor.client.requests.request')
+    def test_401_and_403_raise_distinct_exception_types(self, mock_request):
+        """Test that 401 and 403 are not conflated into the same exception type."""
+        from tap_campaign_monitor.client import (
+            CampaignMonitorForbiddenError, CampaignMonitorUnauthorizedError,
+        )
+        client = self._make_client()
+        self.assertFalse(
+            issubclass(CampaignMonitorUnauthorizedError, CampaignMonitorForbiddenError))
+        self.assertFalse(
+            issubclass(CampaignMonitorForbiddenError, CampaignMonitorUnauthorizedError))
 
     @patch('tap_campaign_monitor.client.requests.request')
     def test_request_with_params_and_body(self, mock_request):

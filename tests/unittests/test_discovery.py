@@ -3,7 +3,9 @@ import unittest
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
-from tap_campaign_monitor.client import CampaignMonitorForbiddenError
+from tap_campaign_monitor.client import (
+    CampaignMonitorForbiddenError, CampaignMonitorUnauthorizedError,
+)
 from tap_campaign_monitor.streams.campaigns import CampaignsStream
 from tap_campaign_monitor.streams.lists import ListsStream
 from tap_campaign_monitor.streams.campaign_bounces import CampaignBouncesStream
@@ -51,12 +53,15 @@ class TestCheckAccess(unittest.TestCase):
         stream = CampaignsStream(CONFIG, STATE, None, client)
         self.assertFalse(stream.check_access())
 
-    def test_parent_stream_forbidden_401(self):
-        """Parent stream returns False when 401 (Unauthorized) is raised."""
+    def test_parent_stream_unauthorized_401_propagates(self):
+        """Parent stream raises (does not swallow) CampaignMonitorUnauthorizedError on 401,
+        so invalid credentials fail fast instead of being treated as a per-stream exclusion."""
         client = _mock_client()
-        client.make_request.side_effect = CampaignMonitorForbiddenError("Unauthorized")
+        client.make_request.side_effect = CampaignMonitorUnauthorizedError(
+            "HTTP-error-code: 401, Error: Invalid or expired credentials.")
         stream = CampaignsStream(CONFIG, STATE, None, client)
-        self.assertFalse(stream.check_access())
+        with self.assertRaises(CampaignMonitorUnauthorizedError):
+            stream.check_access()
 
     @patch('tap_campaign_monitor.streams.base.LOGGER.warning')
     def test_parent_stream_forbidden_logs_unauthorized_stream(self, mock_warning):
@@ -133,6 +138,53 @@ class TestDiscovery(unittest.TestCase):
         self.assertNotIn('list_bounced_subscribers', stream_names)
         self.assertIn('campaigns', stream_names)
         self.assertIn('campaign_bounces', stream_names)
+
+    def test_401_fails_fast_without_probing_every_stream(self):
+        """Invalid credentials (401) on the first parent probe propagate immediately
+        instead of being converted into an empty/partial catalog."""
+        from tap_campaign_monitor import do_discover
+        client = _mock_client()
+        client.make_request.side_effect = CampaignMonitorUnauthorizedError(
+            "HTTP-error-code: 401, Error: Invalid or expired credentials.")
+        with self.assertRaises(CampaignMonitorUnauthorizedError):
+            do_discover(_make_args(), client)
+        # Only the first parent stream (campaigns) should have been probed.
+        self.assertEqual(client.make_request.call_count, 1)
+
+    @patch('tap_campaign_monitor.discover.LOGGER.warning')
+    def test_summary_warning_logs_excluded_stream_names(self, mock_warning):
+        """discover() logs a summary warning naming the excluded stream(s)."""
+        client = _mock_client()
+
+        def make_request_side_effect(url, method, *args, **kwargs):
+            if '/campaigns' in url:
+                raise CampaignMonitorForbiddenError("Forbidden")
+
+        client.make_request.side_effect = make_request_side_effect
+        self._run_discover(_make_args(), client)
+
+        mock_warning.assert_any_call(
+            "No 'read' access to stream(s): %s. Excluded from catalog.",
+            'campaigns',
+        )
+
+    @patch('tap_campaign_monitor.discover.LOGGER.warning')
+    def test_child_exclusion_warning_logs_parent_dependency(self, mock_warning):
+        """discover() logs why each child stream was excluded due to its parent."""
+        client = _mock_client()
+
+        def make_request_side_effect(url, method, *args, **kwargs):
+            if '/campaigns' in url:
+                raise CampaignMonitorForbiddenError("Forbidden")
+
+        client.make_request.side_effect = make_request_side_effect
+        self._run_discover(_make_args(), client)
+
+        mock_warning.assert_any_call(
+            "Stream '%s' excluded from catalog because its parent "
+            "stream '%s' is not accessible.",
+            'campaign_bounces', 'campaigns',
+        )
 
 
 if __name__ == '__main__':

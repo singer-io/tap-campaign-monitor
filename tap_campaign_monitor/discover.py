@@ -22,15 +22,16 @@ def _get_inaccessible_streams(config, state, client):
 def discover(config, state, client):
     """
     Build and return the catalog list, excluding streams the credentials
-    cannot access (HTTP 401/403). Raises CampaignMonitorForbiddenError if no
-    parent stream is accessible.
+    lack 'read' access to (HTTP 403). Raises CampaignMonitorForbiddenError if
+    no parent stream is accessible, or CampaignMonitorUnauthorizedError
+    immediately if credentials are invalid/expired (HTTP 401).
     """
     inaccessible_streams = _get_inaccessible_streams(config, state, client)
 
     parent_streams = {s.TABLE for s in AVAILABLE_STREAMS if not s.PARENT}
     if not (parent_streams - inaccessible_streams):
         raise CampaignMonitorForbiddenError(
-            "HTTP-error-code: 401/403, Error: The credentials do not have "
+            "HTTP-error-code: 403, Error: The credentials do not have "
             "'read' access to any supported streams."
         )
 

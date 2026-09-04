@@ -22,7 +22,13 @@ class Server429Error(Exception):
     pass
 
 
+class CampaignMonitorUnauthorizedError(Exception):
+    """Raised for HTTP 401: credentials are invalid/expired."""
+    pass
+
+
 class CampaignMonitorForbiddenError(Exception):
+    """Raised for HTTP 403: credentials are valid but lack 'read' access."""
     pass
 
 
@@ -42,8 +48,8 @@ class CampaignMonitorClient:
         response = requests.request("POST", url, data=data)
         payload = response.json()
         if 'access_token' not in payload:
-            raise CampaignMonitorForbiddenError(
-                "Invalid credentials: {}".format(
+            raise CampaignMonitorUnauthorizedError(
+                "HTTP-error-code: 401, Error: Invalid credentials: {}".format(
                     payload.get('error_description') or payload.get('error') or response.text
                 )
             )
@@ -105,8 +111,16 @@ class CampaignMonitorClient:
                 except (TypeError, ValueError):
                     self._retry_after = RETRY_RATE_LIMIT
                 raise Server429Error()
-            elif resp.status_code in (401, 403):
-                raise CampaignMonitorForbiddenError(resp.text)
+            elif resp.status_code == 401:
+                raise CampaignMonitorUnauthorizedError(
+                    "HTTP-error-code: 401, Error: Invalid or expired credentials. {}"
+                    .format(resp.text)
+                )
+            elif resp.status_code == 403:
+                raise CampaignMonitorForbiddenError(
+                    "HTTP-error-code: 403, Error: The credentials do not have "
+                    "'read' access to this resource. {}".format(resp.text)
+                )
             elif resp.status_code != 200:
                 raise RuntimeError(resp.text)
 

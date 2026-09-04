@@ -1,7 +1,9 @@
 """Integration test: discovery produces correct catalog and metadata."""
 import unittest
 
-from tap_campaign_monitor.client import CampaignMonitorForbiddenError
+from tap_campaign_monitor.client import (
+    CampaignMonitorForbiddenError, CampaignMonitorUnauthorizedError,
+)
 from tap_campaign_monitor.discover import discover
 
 from .base import CampaignMonitorMockBaseTest
@@ -119,3 +121,12 @@ class DiscoveryExclusionIntegrationTest(CampaignMonitorMockBaseTest, unittest.Te
             blocked_streams={'campaigns', 'lists'})
         with self.assertRaises(CampaignMonitorForbiddenError):
             self._run_discover_with_client(client)
+
+    def test_invalid_credentials_raise_unauthorized_error_fast(self):
+        """CampaignMonitorUnauthorizedError (401) propagates immediately and
+        is not converted into a per-stream exclusion or an empty catalog."""
+        client = self._create_unauthorized_mock_client()
+        with self.assertRaises(CampaignMonitorUnauthorizedError):
+            self._run_discover_with_client(client)
+        # Only the first parent stream should have been probed before failing fast.
+        self.assertEqual(client.make_request.call_count, 1)
