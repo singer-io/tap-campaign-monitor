@@ -34,12 +34,13 @@ class CampaignMonitorForbiddenError(Exception):
 
 class CampaignMonitorClient:
 
-    def __init__(self, config):
+    def __init__(self, config, load_timezone=True):
         self.config = config
         self._retry_after = RETRY_RATE_LIMIT
         self.access_token = self.refresh_access_token()
-        self.timezone = self.get_timezone()
-        LOGGER.info("Client timezone is {}".format(self.timezone))
+        self.timezone = self.get_timezone() if load_timezone else None
+        if load_timezone:
+            LOGGER.info("Client timezone is {}".format(self.timezone))
 
     def refresh_access_token(self):
         LOGGER.info("Refreshing access token")
@@ -47,11 +48,34 @@ class CampaignMonitorClient:
         data = {'grant_type': 'refresh_token', 'refresh_token': self.config['refresh_token']}
         response = requests.request("POST", url, data=data)
         payload = response.json()
-        if 'access_token' not in payload:
+        oauth_error = payload.get('error')
+        if response.status_code == 401 or (
+                response.status_code == 400
+                and oauth_error in {'invalid_client', 'invalid_grant',
+                                    'unauthorized_client'}):
             raise CampaignMonitorUnauthorizedError(
                 "HTTP-error-code: 401, Error: Invalid credentials: {}".format(
                     payload.get('error_description') or payload.get('error') or response.text
                 )
+            )
+        if response.status_code == 429:
+            raise Server429Error(
+                "HTTP-error-code: 429, Error: Rate limit exceeded. {}"
+                .format(response.text)
+            )
+        if 500 <= response.status_code < 600:
+            raise Server5xxError(
+                "HTTP-error-code: {}, Error: {}"
+                .format(response.status_code, response.text)
+            )
+        if response.status_code != 200:
+            raise RuntimeError(
+                "HTTP-error-code: {}, Error: {}"
+                .format(response.status_code, response.text)
+            )
+        if 'access_token' not in payload:
+            raise RuntimeError(
+                "Invalid token response: access_token is missing."
             )
         return payload['access_token']
 

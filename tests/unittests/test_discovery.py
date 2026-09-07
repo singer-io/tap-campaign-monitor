@@ -29,6 +29,22 @@ def _mock_client():
     return client
 
 
+class TestVerifyCredentials(unittest.TestCase):
+    """Unit tests for credential verification setup."""
+
+    @patch('tap_campaign_monitor.CampaignMonitorClient')
+    def test_can_skip_timezone_for_discovery(self, mock_client_class):
+        """Discovery authentication does not request client timezone details."""
+        from tap_campaign_monitor import verify_credentials
+
+        client = verify_credentials(CONFIG, load_timezone=False)
+
+        mock_client_class.assert_called_once_with(
+            CONFIG, load_timezone=False
+        )
+        self.assertIs(client, mock_client_class.return_value)
+
+
 class TestCheckAccess(unittest.TestCase):
     """Unit tests for BaseStream.check_access()."""
 

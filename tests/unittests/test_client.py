@@ -29,6 +29,19 @@ class TestCampaignMonitorClientInit(unittest.TestCase):
         mock_refresh.assert_called_once()
         mock_tz.assert_called_once()
 
+    @patch('tap_campaign_monitor.client.CampaignMonitorClient.get_timezone')
+    @patch('tap_campaign_monitor.client.CampaignMonitorClient.refresh_access_token')
+    def test_init_can_skip_timezone(self, mock_refresh, mock_tz):
+        """Discovery can authenticate without requesting client details."""
+        from tap_campaign_monitor.client import CampaignMonitorClient
+        config = {'client_id': 'test_id', 'refresh_token': 'test_token'}
+
+        client = CampaignMonitorClient(config, load_timezone=False)
+
+        mock_refresh.assert_called_once()
+        mock_tz.assert_not_called()
+        self.assertIsNone(client.timezone)
+
 
 class TestRefreshAccessToken(unittest.TestCase):
     """Test the refresh_access_token method."""
@@ -47,6 +60,36 @@ class TestRefreshAccessToken(unittest.TestCase):
             CampaignMonitorClient(config)
         self.assertIn('401', str(ctx.exception))
         self.assertIn('Refresh token revoked', str(ctx.exception))
+
+    @parameterized.expand([
+        (429, 'rate limited', 'Server429Error'),
+        (500, 'server error', 'Server5xxError'),
+    ])
+    @patch('tap_campaign_monitor.client.requests.request')
+    def test_refresh_access_token_preserves_transient_error(
+            self, status_code, response_text, exception_name, mock_request):
+        """Token-service transient failures are not reported as invalid credentials."""
+        from tap_campaign_monitor import client as client_module
+        from tap_campaign_monitor.client import CampaignMonitorClient
+        mock_request.return_value = MockResponse(
+            status_code, {'error': 'server_error'}, response_text
+        )
+
+        with self.assertRaises(getattr(client_module, exception_name)):
+            CampaignMonitorClient(
+                {'client_id': 'test_id', 'refresh_token': 'test_token'}
+            )
+
+    @patch('tap_campaign_monitor.client.requests.request')
+    def test_refresh_access_token_rejects_malformed_success(self, mock_request):
+        """A successful response without a token is a response error, not a 401."""
+        from tap_campaign_monitor.client import CampaignMonitorClient
+        mock_request.return_value = MockResponse(200, {'unexpected': 'value'})
+
+        with self.assertRaisesRegex(RuntimeError, 'access_token is missing'):
+            CampaignMonitorClient(
+                {'client_id': 'test_id', 'refresh_token': 'test_token'}
+            )
 
     @patch('tap_campaign_monitor.client.CampaignMonitorClient.get_timezone')
     @patch('tap_campaign_monitor.client.requests.request')

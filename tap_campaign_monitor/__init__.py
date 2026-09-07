@@ -16,10 +16,10 @@ from tap_campaign_monitor.streams.base import is_stream_selected
 LOGGER = singer.get_logger()  # noqa
 
 
-def verify_credentials(config):
+def verify_credentials(config, load_timezone=True):
     LOGGER.info("Verifying credentials.")
     try:
-        client = CampaignMonitorClient(config)
+        client = CampaignMonitorClient(config, load_timezone=load_timezone)
         LOGGER.info("Credentials verified successfully.")
         return client
     except Exception as e:
@@ -112,7 +112,9 @@ def main():
     args = singer.utils.parse_args(
         required_config_keys=['client_id', 'refresh_token'])
 
-    client = verify_credentials(args.config)
+    client = verify_credentials(
+        args.config, load_timezone=not args.discover
+    )
 
     if args.discover:
         do_discover(args, client)

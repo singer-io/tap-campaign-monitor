@@ -1,5 +1,5 @@
 ## 1.3.0
-- Streams the credentials cannot access (HTTP 401/403) are excluded from the catalog during discovery (discovery still fails if no parent streams are accessible). [#17](https://github.com/singer-io/tap-campaign-monitor/pull/17)
+- Streams the credentials cannot access (HTTP 403) are excluded from the catalog during discovery; invalid credentials (HTTP 401) fail discovery immediately, as does having no accessible parent stream. [#17](https://github.com/singer-io/tap-campaign-monitor/pull/17)
 - Bump to requests==2.34.2
 
 ## 1.2.0
