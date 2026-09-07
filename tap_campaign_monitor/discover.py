@@ -7,15 +7,70 @@ from tap_campaign_monitor.streams import AVAILABLE_STREAMS
 
 LOGGER = singer.get_logger()
 
+STREAMS = {stream.TABLE: stream for stream in AVAILABLE_STREAMS}
 
-def _get_inaccessible_streams(config, state, client):
-    """Return set of TABLE names for parent streams that return 401 or 403."""
-    inaccessible_streams = set()
-    for stream_cls in AVAILABLE_STREAMS:
-        if not stream_cls.PARENT:
-            stream = stream_cls(config, state, None, client)
-            if not stream.check_access():
-                inaccessible_streams.add(stream_cls.TABLE)
+
+def _prune_inaccessible_children(streams):
+    """
+    Remove child streams from the catalog whose parent stream was excluded.
+    Mutates the streams list in place.
+    """
+    accessible_streams = {stream['tap_stream_id'] for stream in streams}
+    to_remove = [
+        stream['tap_stream_id']
+        for stream in streams
+        if STREAMS[stream['tap_stream_id']].PARENT
+        and STREAMS[stream['tap_stream_id']].PARENT not in accessible_streams
+    ]
+
+    for stream in to_remove:
+        LOGGER.warning(
+            "Stream '%s' excluded from catalog because its parent "
+            "stream '%s' is not accessible.",
+            stream,
+            STREAMS[stream].PARENT,
+        )
+
+    streams[:] = [
+        stream for stream in streams
+        if stream['tap_stream_id'] not in to_remove
+    ]
+    return to_remove
+
+
+def _apply_access_checks(config, state, client, streams):
+    """
+    Probe streams for read access, remove inaccessible streams and children,
+    and raise CampaignMonitorForbiddenError if none remain accessible.
+    Mutates the streams list in place.
+    """
+    inaccessible_streams = [
+        stream['tap_stream_id']
+        for stream in streams
+        if not STREAMS[stream['tap_stream_id']](
+            config, state, None, client
+        ).check_access()
+    ]
+
+    streams[:] = [
+        stream for stream in streams
+        if stream['tap_stream_id'] not in inaccessible_streams
+    ]
+
+    inaccessible_streams.extend(_prune_inaccessible_children(streams))
+
+    if inaccessible_streams:
+        LOGGER.warning(
+            "No 'read' access to stream(s): %s. Excluded from catalog.",
+            ", ".join(inaccessible_streams),
+        )
+
+    if not streams:
+        raise CampaignMonitorForbiddenError(
+            "HTTP-error-code: 403, Error: The credentials do not have "
+            "'read' access to any supported streams."
+        )
+
     return inaccessible_streams
 
 
@@ -26,32 +81,10 @@ def discover(config, state, client):
     no parent stream is accessible, or CampaignMonitorUnauthorizedError
     immediately if credentials are invalid/expired (HTTP 401).
     """
-    inaccessible_streams = _get_inaccessible_streams(config, state, client)
-
-    parent_streams = {s.TABLE for s in AVAILABLE_STREAMS if not s.PARENT}
-    if not (parent_streams - inaccessible_streams):
-        raise CampaignMonitorForbiddenError(
-            "HTTP-error-code: 403, Error: The credentials do not have "
-            "'read' access to any supported streams."
-        )
-
-    if inaccessible_streams:
-        LOGGER.warning(
-            "No 'read' access to stream(s): %s. Excluded from catalog.",
-            ", ".join(inaccessible_streams),
-        )
-
     catalog = []
     for stream_cls in AVAILABLE_STREAMS:
-        if stream_cls.TABLE in inaccessible_streams:
-            continue
-        if stream_cls.PARENT and stream_cls.PARENT in inaccessible_streams:
-            LOGGER.warning(
-                "Stream '%s' excluded from catalog because its parent "
-                "stream '%s' is not accessible.",
-                stream_cls.TABLE, stream_cls.PARENT,
-            )
-            continue
         catalog += stream_cls(config, state, None, None).generate_catalog()
+
+    _apply_access_checks(config, state, client, catalog)
 
     return catalog

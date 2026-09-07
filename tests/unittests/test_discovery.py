@@ -165,7 +165,10 @@ class TestDiscovery(unittest.TestCase):
 
         mock_warning.assert_any_call(
             "No 'read' access to stream(s): %s. Excluded from catalog.",
-            'campaigns',
+            'campaigns, campaign_bounces, campaign_clicks, '
+            'campaign_email_client_usage, campaign_opens, '
+            'campaign_recipients, campaign_spam_complaints, '
+            'campaign_summary, campaign_unsubscribes',
         )
 
     @patch('tap_campaign_monitor.discover.LOGGER.warning')
