@@ -15,6 +15,13 @@ class MockResponse:
         return self._json_data
 
 
+class NonJsonResponse(MockResponse):
+    """Mock an HTTP response whose body is not valid JSON."""
+
+    def json(self):
+        raise ValueError('not JSON')
+
+
 class TestCampaignMonitorClientInit(unittest.TestCase):
     """Test CampaignMonitorClient initialization."""
 
@@ -79,6 +86,29 @@ class TestRefreshAccessToken(unittest.TestCase):
             CampaignMonitorClient(
                 {'client_id': 'test_id', 'refresh_token': 'test_token'}
             )
+
+    @parameterized.expand([
+        (401, 'Unauthorized', 'CampaignMonitorUnauthorizedError'),
+        (429, 'Rate limited', 'Server429Error'),
+        (500, 'Server error', 'Server5xxError'),
+    ])
+    @patch('tap_campaign_monitor.client.requests.request')
+    def test_refresh_access_token_classifies_non_json_error(
+            self, status_code, response_text, exception_name, mock_request):
+        """Non-JSON token errors retain their HTTP status classification."""
+        from tap_campaign_monitor import client as client_module
+        from tap_campaign_monitor.client import CampaignMonitorClient
+        mock_request.return_value = NonJsonResponse(
+            status_code, text=response_text
+        )
+
+        with self.assertRaises(getattr(client_module, exception_name)) as ctx:
+            CampaignMonitorClient(
+                {'client_id': 'test_id', 'refresh_token': 'test_token'}
+            )
+
+        self.assertIn(str(status_code), str(ctx.exception))
+        self.assertIn(response_text, str(ctx.exception))
 
     @patch('tap_campaign_monitor.client.requests.request')
     def test_refresh_access_token_rejects_malformed_success(self, mock_request):

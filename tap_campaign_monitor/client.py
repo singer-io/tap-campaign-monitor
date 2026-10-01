@@ -47,17 +47,6 @@ class CampaignMonitorClient:
         url = "https://api.createsend.com/oauth/token"
         data = {'grant_type': 'refresh_token', 'refresh_token': self.config['refresh_token']}
         response = requests.request("POST", url, data=data)
-        payload = response.json()
-        oauth_error = payload.get('error')
-        if response.status_code == 401 or (
-                response.status_code == 400
-                and oauth_error in {'invalid_client', 'invalid_grant',
-                                    'unauthorized_client'}):
-            raise CampaignMonitorUnauthorizedError(
-                "HTTP-error-code: 401, Error: Invalid credentials: {}".format(
-                    payload.get('error_description') or payload.get('error') or response.text
-                )
-            )
         if response.status_code == 429:
             raise Server429Error(
                 "HTTP-error-code: 429, Error: Rate limit exceeded. {}"
@@ -68,12 +57,28 @@ class CampaignMonitorClient:
                 "HTTP-error-code: {}, Error: {}"
                 .format(response.status_code, response.text)
             )
+
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {}
+
+        oauth_error = payload.get('error') if isinstance(payload, dict) else None
+        if response.status_code == 401 or (
+                response.status_code == 400
+                and oauth_error in {'invalid_client', 'invalid_grant',
+                                    'unauthorized_client'}):
+            raise CampaignMonitorUnauthorizedError(
+                "HTTP-error-code: 401, Error: Invalid credentials: {}".format(
+                    payload.get('error_description') or payload.get('error') or response.text
+                )
+            )
         if response.status_code != 200:
             raise RuntimeError(
                 "HTTP-error-code: {}, Error: {}"
                 .format(response.status_code, response.text)
             )
-        if 'access_token' not in payload:
+        if not isinstance(payload, dict) or 'access_token' not in payload:
             raise RuntimeError(
                 "Invalid token response: access_token is missing."
             )
