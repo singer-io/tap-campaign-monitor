@@ -97,6 +97,30 @@ class BaseStream:
         self.client = client
         self.substreams = []
 
+    def check_access(self):
+        """
+        Verify that the API credentials have read access to this stream.
+        Returns True if accessible, False if a 403 (valid credentials, no
+        permission) error is raised. A 401 (invalid/expired credentials) is
+        not caught here: it propagates so discovery fails fast instead of
+        silently excluding streams. Child streams always return True (access
+        is governed by the parent check).
+        """
+        from tap_campaign_monitor.client import CampaignMonitorForbiddenError
+        if self.PARENT:
+            return True
+        url = 'https://api.createsend.com/api/v3.2{}'.format(self.api_path)
+        try:
+            self.client.make_request(url, self.API_METHOD)
+            return True
+        except CampaignMonitorForbiddenError as exc:
+            LOGGER.warning(
+                "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
+                self.TABLE,
+                str(exc),
+            )
+            return False
+
     def get_class_path(self):
         return os.path.dirname(inspect.getfile(self.__class__))
 

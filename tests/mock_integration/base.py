@@ -454,6 +454,43 @@ class CampaignMonitorMockBaseTest:
 
         return mock_fn
 
+    @classmethod
+    def _create_forbidden_mock_client(cls, blocked_streams=()):
+        """Mock client that raises CampaignMonitorForbiddenError (HTTP 403,
+        valid credentials lacking permission) for *blocked_streams* (parent
+        stream TABLE names)."""
+        from tap_campaign_monitor.client import CampaignMonitorForbiddenError
+        normal_fn = cls._mock_make_request()
+
+        def mock_fn(url, method, params=None, body=None):
+            stream_name = cls._match_stream(url)
+            if stream_name in blocked_streams:
+                raise CampaignMonitorForbiddenError(
+                    'HTTP-error-code: 403, Error: {"Code": 403, "Message": "Forbidden"}')
+            return normal_fn(url, method, params=params, body=body)
+
+        client = MagicMock()
+        client.timezone = pytz.UTC
+        client.config = dict(cls.default_config)
+        client.make_request = MagicMock(side_effect=mock_fn)
+        return client
+
+    @classmethod
+    def _create_unauthorized_mock_client(cls):
+        """Mock client that raises CampaignMonitorUnauthorizedError (HTTP 401,
+        invalid/expired credentials) on every request."""
+        from tap_campaign_monitor.client import CampaignMonitorUnauthorizedError
+
+        def mock_fn(url, method, params=None, body=None):
+            raise CampaignMonitorUnauthorizedError(
+                'HTTP-error-code: 401, Error: {"Code": 401, "Message": "Unauthorized"}')
+
+        client = MagicMock()
+        client.timezone = pytz.UTC
+        client.config = dict(cls.default_config)
+        client.make_request = MagicMock(side_effect=mock_fn)
+        return client
+
     # ---- Date-filtering mock client ---- #
 
     @classmethod
